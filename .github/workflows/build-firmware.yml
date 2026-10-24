@@ -12,7 +12,6 @@ permissions:
 
 jobs:
   build:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -35,7 +34,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf /tmp/nusa-build
-          arduino-cli compile             --fqbn 'esp32:esp32:esp32'             --build-path /tmp/nusa-build             'source/NUSA_APRS_IGATE_DIGI_REV1S_RF_REMOTE_ADMIN'
+          arduino-cli compile --fqbn 'esp32:esp32:esp32' --build-path /tmp/nusa-build 'source/NUSA_APRS_IGATE_DIGI_REV1S_RF_REMOTE_ADMIN'
 
       - name: Build four-BIN package
         shell: bash
@@ -51,8 +50,10 @@ jobs:
             cd "$OUT"
             sha256sum bootloader.bin partitions.bin boot_app0.bin firmware.bin > SHA256SUMS.txt
           )
-          printf '%s
-'             '0x1000 bootloader.bin'             '0x8000 partitions.bin'             '0xE000 boot_app0.bin'             '0x10000 firmware.bin' > "$OUT/FLASH_OFFSETS.txt"
+          echo '0x1000 bootloader.bin' > "$OUT/FLASH_OFFSETS.txt"
+          echo '0x8000 partitions.bin' >> "$OUT/FLASH_OFFSETS.txt"
+          echo '0xE000 boot_app0.bin' >> "$OUT/FLASH_OFFSETS.txt"
+          echo '0x10000 firmware.bin' >> "$OUT/FLASH_OFFSETS.txt"
 
       - name: Commit generated binaries if changed
         shell: bash
