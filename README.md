@@ -22,15 +22,27 @@ NUSA APRS ESP32 combines an APRS RF iGate, RF digipeater, APRS-IS client, web co
 
 | Function | ESP32 |
 |---|---:|
-| RX discriminator/flat audio | GPIO36 / VP |
+| RX audio / ADC | GPIO36 / VP |
 | TX AFSK DAC | GPIO26 |
-| PTT | GPIO25 |
+| PTT control | GPIO25 |
 | RX LED | GPIO2 |
 | TX LED | GPIO4 |
 | OLED SDA | GPIO21 |
 | OLED SCL | GPIO22 |
 
-The NPN PTT interface is radio-side active LOW while ESP32 GPIO25 is active HIGH: GPIO25 HIGH turns the 2N3904 on and grounds the radio PTT line.
+## RF interface schematic
+
+![NUSA APRS ESP32 RF interface schematic](hardware/skema.jpeg)
+
+The uploaded RF interface schematic uses:
+
+- RX: J1 SPK/audio → VR1 10 kΩ → C1 1 µF → R1 1 kΩ → GPIO36/VP.
+- RX ADC bias: R2 100 kΩ to 3V3 and R3 100 kΩ to GND, giving approximately 1.65 V; C2 2.2 nF goes from the GPIO36 bias node to GND.
+- PTT: GPIO25 → R4 1 kΩ → Q1 2N3904 base, with R5 10 kΩ base pulldown. Q1 is used as an NPN open-collector switch to pull the radio PTT line LOW.
+- TX: GPIO26 → R6 1 kΩ → C3 1 µF → VR2 10 kΩ → radio MIC/audio TX.
+- J1, J2 and J3 use a common GND on pin 2.
+
+For C3, the schematic recommends a non-polar 1 µF capacitor when the radio MIC input has unknown DC bias. If an electrolytic is used, its positive side should face the side with the higher DC voltage.
 
 ## Four BIN flash package
 
@@ -47,7 +59,7 @@ Binaries are built for **ESP32 Dev Module / 4 MB flash / Arduino-ESP32 Core 3.3.
 
 - Indonesian: [User guide](docs/USER_GUIDE_ID.md) · [Adjustment](docs/ADJUSTMENT_ID.md) · [RF Remote Admin](docs/RF_REMOTE_ADMIN_ID.md)
 - English: [User guide](docs/USER_GUIDE_EN.md) · [Adjustment](docs/ADJUSTMENT_EN.md) · [RF Remote Admin](docs/RF_REMOTE_ADMIN_EN.md)
-- Hardware: [schematic](hardware/NUSA_APRS_ESP32_SCHEMATIC.svg) · [pinout](hardware/NUSA_APRS_ESP32_PINOUT.svg) · [BOM](hardware/BOM.md)
+- Hardware: [RF schematic](hardware/skema.jpeg) · [RF interface BOM](hardware/BOM.md)
 - Source: [REV1S sketch folder](source/NUSA_APRS_IGATE_DIGI_REV1S_RF_REMOTE_ADMIN/)
 - Validation: [docs/VALIDATION.md](docs/VALIDATION.md)
 
