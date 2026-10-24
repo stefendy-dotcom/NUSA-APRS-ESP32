@@ -8,7 +8,7 @@ Engine RX tetap menggunakan Decoder A dan Decoder B: B-RAW, B-EQ125 dan B-EQ130.
 
 ## Pin utama
 
-- RX audio: GPIO36 / VP
+- RX audio / ADC: GPIO36 / VP
 - TX AFSK DAC: GPIO26
 - PTT: GPIO25
 - RX LED: GPIO2
@@ -16,11 +16,21 @@ Engine RX tetap menggunakan Decoder A dan Decoder B: B-RAW, B-EQ125 dan B-EQ130.
 - OLED SDA/SCL: GPIO21/GPIO22
 - OLED VCC: 3.3 V
 
-PTT memakai NPN 2N3904: GPIO25 HIGH menyalakan transistor dan menarik jalur PTT radio ke GND.
+## Skema antarmuka RF
+
+Lihat [hardware/skema.jpeg](hardware/skema.jpeg).
+
+- RX: J1 SPK/audio → VR1 10K → C1 1µF → R1 1K → GPIO36/VP.
+- Bias ADC RX: R2 100K ke 3V3 dan R3 100K ke GND, bias sekitar 1,65 V. C2 2n2 dari node bias/GPIO36 ke GND.
+- PTT: GPIO25 → R4 1K → basis Q1 2N3904. R5 10K menjadi pull-down basis. Collector Q1 menarik jalur PTT radio ke GND sehingga PTT radio aktif LOW.
+- TX: GPIO26 → R6 1K → C3 1µF → VR2 10K → J3 MIC/audio TX radio.
+- Pin 2 J1, J2 dan J3 adalah GND.
+
+Untuk C3, skema menyarankan kapasitor non-polar 1µF bila input MIC radio mempunyai bias DC yang tidak diketahui. Bila memakai elko, kutub + dipasang ke sisi yang mempunyai tegangan DC lebih tinggi.
 
 ## Mulai
 
-1. Set MINI560 ke **5.0 V** sebelum menyambungkan ESP32.
+1. Berikan catu **5 V stabil** ke VIN ESP32. Bila PCB memakai MINI560, set output sekitar 5,0 V sebelum ESP32 dipasang.
 2. Flash empat BIN sesuai [docs/BUILD_FLASH.md](docs/BUILD_FLASH.md).
 3. Nyalakan unit dan sambungkan ke AP NUSA-APRS-IGATE.
 4. Buka 192.168.4.1.
