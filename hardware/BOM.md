@@ -1,28 +1,36 @@
-# Suggested BOM / Hardware Notes
+# BOM — Antarmuka RF sesuai skema.jpeg
 
-| Item | Typical value / part | Notes |
+Daftar berikut mengikuti komponen yang terlihat pada [skema.jpeg](skema.jpeg).
+
+| Ref | Nilai / part | Fungsi |
 |---|---|---|
-| MCU | ESP32 DevKit / WROOM-32 | classic ESP32, 4 MB |
-| Buck converter | MINI560 5A module | set output to 5.0 V before ESP32 |
-| Q1 | 2N3904 NPN | verify actual E-B-C pinout |
-| PTT base resistor | 1 kΩ | GPIO25 → base |
-| PTT pulldown | 10 kΩ | base → GND |
-| RX level pot | 10 kΩ | radio SPK/flat audio |
-| RX series resistor | 1 kΩ | before GPIO36 |
-| RX bias resistors | 47 kΩ + 47 kΩ | 3V3/GND midpoint ≈1.65 V |
-| RX RF/noise capacitor | 2.2 nF | GPIO36 bias node → GND |
-| RX coupling capacitor | 1 µF | non-polar preferred if DC unknown |
-| TX series resistor | 1 kΩ | GPIO26 DAC output |
-| TX level pot | 10 kΩ | adjust radio MIC level |
-| TX coupling capacitor | 1 µF | non-polar preferred if MIC bias unknown |
-| Supply bulk capacitor | 47 µF minimum | at 5 V rail; 220–470 µF optional for harsh sites |
-| Supply bypass | 100 nF / 104 | near ESP32 supply |
-| OLED | SH1106 128×64 I2C | SSD1306 also supported |
+| U1 | ESP32 DevKit 30-pin | MCU |
+| J1 | Connector 2-pin | SPK / AUDIO RX masuk; pin 2 GND |
+| J2 | Connector 2-pin | PTT radio; pin 2 GND |
+| J3 | Connector 2-pin | MIC / AUDIO TX keluar; pin 2 GND |
+| VR1 | Pot 10 kΩ | Level audio RX |
+| VR2 | Pot 10 kΩ | Deviasi / level audio TX |
+| R1 | 1 kΩ | Series RX menuju GPIO36 |
+| R2 | 100 kΩ | Bias RX dari 3V3 |
+| R3 | 100 kΩ | Bias RX ke GND |
+| R4 | 1 kΩ | GPIO25 ke basis Q1 |
+| R5 | 10 kΩ | Pull-down basis Q1 |
+| R6 | 1 kΩ | Series TX dari GPIO26 |
+| C1 | 1 µF elko | Coupling audio RX |
+| C2 | 2.2 nF / 2n2 | Filter node RX/GPIO36 ke GND |
+| C3 | 1 µF | Coupling audio TX |
+| Q1 | 2N3904 NPN | Open-collector PTT |
 
-## Critical checks
-- MINI560 output must be about 5.0 V before connecting VIN.
-- Never apply station 12–14 V directly to ESP32 VIN/3V3.
-- Verify every GND connection and ground-pour thermal.
-- Verify 2.2 nF capacitor really goes from GPIO36 RX/bias node to GND.
-- Verify transistor footprint matches the actual 2N3904 pin order.
-- Polarized 1 µF orientation must follow measured DC voltage; use bipolar/non-polar when uncertain.
+## Jalur sesuai skema
+
+**RX:** J1 → VR1 → C1 → R1 → GPIO36/VP. Node GPIO36 dibias sekitar **1,65 V** oleh R2 100K ke 3V3 dan R3 100K ke GND; C2 2n2 ke GND.
+
+**PTT:** GPIO25 → R4 1K → basis Q1. R5 10K ke GND. Collector Q1 ke jalur PTT radio dan emitter ke GND. PTT radio aktif LOW melalui open collector.
+
+**TX:** GPIO26 → R6 1K → C3 1µF → bagian atas VR2 10K; wiper VR2 → J3 pin 1 MIC OUT; kaki bawah VR2 → GND.
+
+Untuk penggunaan umum pada TX, gambar menyarankan **kapasitor non-polar 1µF** bila input MIC radio mempunyai bias DC. Bila memakai elko, kutub + harus menghadap sisi dengan tegangan DC lebih tinggi.
+
+## Di luar skema RF ini
+
+Catu 5 V, MINI560, kapasitor supply, OLED, RX LED dan TX LED tidak digambar pada skema.jpeg; bagian tersebut mengikuti wiring/PCB unit masing-masing.
