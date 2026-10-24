@@ -8,7 +8,7 @@ The established RX engine is retained: Decoder A plus Decoder B RAW/EQ125/EQ130.
 
 ## Main pins
 
-- RX audio: GPIO36 / VP
+- RX audio / ADC: GPIO36 / VP
 - TX AFSK DAC: GPIO26
 - PTT: GPIO25
 - RX LED: GPIO2
@@ -16,11 +16,21 @@ The established RX engine is retained: Decoder A plus Decoder B RAW/EQ125/EQ130.
 - OLED SDA/SCL: GPIO21/GPIO22
 - OLED power: 3.3 V
 
-The NPN PTT interface is radio-side active LOW. GPIO25 HIGH turns the 2N3904 on and grounds the radio PTT line.
+## RF interface schematic
+
+See [hardware/skema.jpeg](hardware/skema.jpeg).
+
+- RX: J1 SPK/audio → VR1 10 kΩ → C1 1 µF → R1 1 kΩ → GPIO36/VP.
+- RX ADC bias: R2 100 kΩ to 3V3 and R3 100 kΩ to GND, giving about 1.65 V. C2 2.2 nF connects the GPIO36/bias node to GND.
+- PTT: GPIO25 → R4 1 kΩ → Q1 2N3904 base. R5 10 kΩ is the base pulldown. Q1 pulls the radio PTT line to GND, so the radio-side PTT is active LOW.
+- TX: GPIO26 → R6 1 kΩ → C3 1 µF → VR2 10 kΩ → J3 radio MIC/audio TX.
+- Pin 2 of J1, J2 and J3 is GND.
+
+For C3, the schematic recommends a non-polar 1 µF capacitor when the radio MIC input may carry unknown DC bias. If an electrolytic is used, its positive terminal should face the side with the higher DC voltage.
 
 ## Quick start
 
-1. Set MINI560 output to **5.0 V** before connecting ESP32.
+1. Feed ESP32 VIN from a **stable 5 V source**. If the PCB uses a MINI560, set its output to about 5.0 V before installing the ESP32.
 2. Flash the four BIN files using [docs/BUILD_FLASH.md](docs/BUILD_FLASH.md).
 3. Join the NUSA-APRS-IGATE access point.
 4. Open 192.168.4.1.
