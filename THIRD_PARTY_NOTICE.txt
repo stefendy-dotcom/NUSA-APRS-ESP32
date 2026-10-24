@@ -1,0 +1,11 @@
+THIRD-PARTY NOTICE
+==================
+
+NUSA APRS ESP32 iGate + Digipeater REV1S uses/adapts concepts and interfaces from the source lineage supplied for this project.
+
+The AFSK receive discriminator/DPLL approach is based on the open-source MicroModem project by Mark Qvist:
+https://github.com/markqvist/MicroModem
+
+MicroModem is distributed under GNU GPL version 3. See LICENSE_GPLv3.txt.
+
+This repository includes complete source code for the generated firmware so the implementation can be inspected and modified.
