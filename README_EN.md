@@ -1,5 +1,11 @@
 # NUSA APRS ESP32 REV1S — English
 
+[![Total Firmware Downloads](https://img.shields.io/github/downloads/stefendy-dotcom/NUSA-APRS-ESP32/total?label=Firmware%20Downloads&color=blue)](https://github.com/stefendy-dotcom/NUSA-APRS-ESP32/releases)
+
+📦 [Download REV1S firmware (4 BIN ZIP)](https://github.com/stefendy-dotcom/NUSA-APRS-ESP32/releases/download/REV1S/NUSA_APRS_ESP32_REV1S_FLASH.zip)
+
+*The counter tracks downloads of GitHub Release assets, not source-code archives downloaded via **Code → Download ZIP**.*
+
 Firmware for a **classic ESP32 WROOM/DevKit** interfacing an analog VHF radio with APRS RF and APRS-IS.
 
 REV1S provides RF→IS iGate, RF digipeating, local IS→RF message gating, RF/IS beaconing, web configuration, live monitoring, SH1106/SSD1306 OLED display, RF weather, RF/APRS-IS last-heard lists, and RF Remote Admin.
