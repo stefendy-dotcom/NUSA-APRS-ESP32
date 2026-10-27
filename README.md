@@ -1,5 +1,11 @@
 # NUSA APRS ESP32 — iGate + Digipeater REV1S
 
+[![Total Firmware Downloads](https://img.shields.io/github/downloads/stefendy-dotcom/NUSA-APRS-ESP32/total?label=Firmware%20Downloads&color=blue)](https://github.com/stefendy-dotcom/NUSA-APRS-ESP32/releases)
+
+📦 [Download REV1S firmware (4 BIN ZIP)](https://github.com/stefendy-dotcom/NUSA-APRS-ESP32/releases/download/REV1S/NUSA_APRS_ESP32_REV1S_FLASH.zip)
+
+*The counter tracks downloads of GitHub Release assets only; source-code archives downloaded through **Code → Download ZIP** are not included.*
+
 **Classic ESP32 WROOM / DevKit + external VHF radio — Bell 202 / AX.25 APRS 1200 baud**
 
 🇮🇩 [Bahasa Indonesia](README_ID.md) · 🇬🇧 [English](README_EN.md)
