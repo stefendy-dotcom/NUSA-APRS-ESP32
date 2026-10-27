@@ -1,5 +1,11 @@
 # NUSA APRS ESP32 REV1S — Bahasa Indonesia
 
+[![Total Firmware Downloads](https://img.shields.io/github/downloads/stefendy-dotcom/NUSA-APRS-ESP32/total?label=Firmware%20Downloads&color=blue)](https://github.com/stefendy-dotcom/NUSA-APRS-ESP32/releases)
+
+📦 [Unduh firmware REV1S (ZIP berisi 4 BIN)](https://github.com/stefendy-dotcom/NUSA-APRS-ESP32/releases/download/REV1S/NUSA_APRS_ESP32_REV1S_FLASH.zip)
+
+*Counter menghitung unduhan berkas di GitHub Releases, bukan unduhan source code dari menu **Code → Download ZIP**.*
+
 Firmware untuk **ESP32 WROOM/DevKit klasik** yang menghubungkan radio VHF analog dengan APRS RF dan APRS-IS.
 
 REV1S menyediakan iGate RF→IS, digipeater RF, local IS→RF message gating, beacon RF/IS, web configuration, monitor live, OLED SH1106/SSD1306, weather RF, daftar stasiun terakhir terdengar via RF dan IS, serta RF Remote Admin.
