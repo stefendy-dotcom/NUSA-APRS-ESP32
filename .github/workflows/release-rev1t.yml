@@ -1,0 +1,115 @@
+name: Create REV1T Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/release-rev1t.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validated REV1T release target
+        uses: actions/checkout@v4
+        with:
+          ref: d859f90a217d3863ae32ca2df4ed4353b927b124
+          fetch-depth: 0
+
+      - name: Build REV1T flash package
+        shell: bash
+        run: |
+          set -euo pipefail
+          PKG='release/NUSA_APRS_ESP32_REV1T'
+          mkdir -p "$PKG"
+          cp firmware/bin/bootloader.bin "$PKG/"
+          cp firmware/bin/partitions.bin "$PKG/"
+          cp firmware/bin/boot_app0.bin "$PKG/"
+          cp firmware/bin/firmware.bin "$PKG/"
+          cp firmware/bin/FLASH_OFFSETS.txt "$PKG/"
+          cp firmware/bin/SHA256SUMS.txt "$PKG/"
+          cp firmware/bin/README.md "$PKG/README_FLASH.md"
+          cp hardware/GPS_WIRING.md "$PKG/"
+          cp docs/GPS_TRACKER_ID.md "$PKG/"
+          cp docs/GPS_TRACKER_EN.md "$PKG/"
+          cp docs/CHANGELOG_REV1T.md "$PKG/"
+          cp docs/VALIDATION.md "$PKG/"
+          cd release
+          zip -9 -r NUSA_APRS_ESP32_REV1T_FLASH.zip NUSA_APRS_ESP32_REV1T
+          sha256sum NUSA_APRS_ESP32_REV1T_FLASH.zip > REV1T_RELEASE_SHA256.txt
+
+      - name: Write release notes
+        shell: bash
+        run: |
+          cat > release/RELEASE_NOTES.md <<'EOF'
+          # NUSA APRS ESP32 REV1T — GPS Tracker
+
+          REV1T is REV1S plus a modular GPS APRS Tracker. The proven REV1S AFSK/AX.25 receive, iGate and digipeater engine is retained byte-for-byte in the frozen engine files.
+
+          ## New in REV1T
+
+          - UART NMEA GPS tracker for NEO-6M, NEO-M8N, NEO-M10N and compatible RMC/GGA receivers.
+          - Selectable 9600 / 38400 / 115200 baud and configurable GPS GPIO.
+          - Position modes: STATIC, GPS, AUTO.
+          - GPS states: NO GPS, GPS SEARCH, GPS FIX, GPS STALE.
+          - Tracker output: RF, APRS-IS, or RF + APRS-IS.
+          - Dedicated tracker RF path, default WIDE2-1.
+          - Fixed interval beaconing.
+          - SmartBeaconing with speed-dependent rates and corner pegging.
+          - Minimum automatic tracker TX interval and stationary protection.
+          - Standard APRS course/speed and optional altitude.
+          - GPS Tracker Web UI and OLED page.
+          - RF Remote Admin commands: TRK, GPS, TMODE, TSEC, TPATH, TOUT, TBCN.
+          - Safe REV1S NVS migration; tracker defaults OFF.
+
+          ## Flash package
+
+          The attached `NUSA_APRS_ESP32_REV1T_FLASH.zip` contains:
+
+          - `0x1000 bootloader.bin`
+          - `0x8000 partitions.bin`
+          - `0xE000 boot_app0.bin`
+          - `0x10000 firmware.bin`
+          - `FLASH_OFFSETS.txt`
+          - `SHA256SUMS.txt`
+          - flash README
+          - GPS wiring guide
+          - GPS Tracker guides (ID/EN)
+          - REV1T changelog
+          - validation report
+
+          Target: classic ESP32 WROOM / DevKit, 4 MB flash, Arduino-ESP32 Core 3.3.11.
+
+          ## Validation
+
+          - Independent server compile: success.
+          - Final local build: 1,139,979 bytes application flash (86%), 77,184 bytes global RAM (23%).
+          - Automated source/logic validation: 63/63 PASS.
+          - GitHub Actions REV1T build: success.
+          - AFSK/AX.25/CRC/FIFO/HDLC files are byte-identical to REV1S.
+          - No new application FreeRTOS task, mutex or semaphore was added by REV1T.
+
+          Physical ESP32 + VHF radio + GPS field validation is still required; compile/static validation is not claimed as proof of over-the-air performance.
+
+          ## CI firmware SHA256
+
+          `firmware.bin`
+          `968c2bf25b97e54d0423509921eb88ebe411233d5033479656e36fcbd5ec95ed`
+          EOF
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view REV1T >/dev/null 2>&1; then
+            gh release edit REV1T               --title "NUSA APRS ESP32 REV1T — GPS Tracker"               --notes-file release/RELEASE_NOTES.md
+            gh release upload REV1T               release/NUSA_APRS_ESP32_REV1T_FLASH.zip               release/REV1T_RELEASE_SHA256.txt               --clobber
+          else
+            gh release create REV1T               --target d859f90a217d3863ae32ca2df4ed4353b927b124               --title "NUSA APRS ESP32 REV1T — GPS Tracker"               --notes-file release/RELEASE_NOTES.md               release/NUSA_APRS_ESP32_REV1T_FLASH.zip               release/REV1T_RELEASE_SHA256.txt
+          fi
