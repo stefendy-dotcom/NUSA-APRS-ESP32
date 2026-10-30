@@ -1,4 +1,4 @@
-name: Build NUSA APRS ESP32 REV1S
+name: Build NUSA APRS ESP32 REV1T
 
 on:
   workflow_dispatch:
@@ -29,12 +29,12 @@ jobs:
           arduino-cli core update-index
           arduino-cli core install 'esp32:esp32@3.3.11'
 
-      - name: Compile REV1S
+      - name: Compile REV1T
         shell: bash
         run: |
           set -euo pipefail
           rm -rf /tmp/nusa-build
-          arduino-cli compile --fqbn 'esp32:esp32:esp32' --build-path /tmp/nusa-build 'source/NUSA_APRS_IGATE_DIGI_REV1S_RF_REMOTE_ADMIN'
+          arduino-cli compile --fqbn 'esp32:esp32:esp32' --build-path /tmp/nusa-build 'source/NUSA_APRS_IGATE_DIGI_REV1T_GPS_TRACKER'
 
       - name: Build four-BIN package
         shell: bash
@@ -42,18 +42,15 @@ jobs:
           set -euo pipefail
           OUT='firmware/bin'
           mkdir -p "$OUT"
-          cp '/tmp/nusa-build/NUSA_APRS_IGATE_DIGI_REV1S_RF_REMOTE_ADMIN.ino.bootloader.bin' "$OUT/bootloader.bin"
-          cp '/tmp/nusa-build/NUSA_APRS_IGATE_DIGI_REV1S_RF_REMOTE_ADMIN.ino.partitions.bin' "$OUT/partitions.bin"
+          cp '/tmp/nusa-build/NUSA_APRS_IGATE_DIGI_REV1T_GPS_TRACKER.ino.bootloader.bin' "$OUT/bootloader.bin"
+          cp '/tmp/nusa-build/NUSA_APRS_IGATE_DIGI_REV1T_GPS_TRACKER.ino.partitions.bin' "$OUT/partitions.bin"
           cp '/tmp/nusa-build/boot_app0.bin' "$OUT/boot_app0.bin"
-          cp '/tmp/nusa-build/NUSA_APRS_IGATE_DIGI_REV1S_RF_REMOTE_ADMIN.ino.bin' "$OUT/firmware.bin"
+          cp '/tmp/nusa-build/NUSA_APRS_IGATE_DIGI_REV1T_GPS_TRACKER.ino.bin' "$OUT/firmware.bin"
           (
             cd "$OUT"
             sha256sum bootloader.bin partitions.bin boot_app0.bin firmware.bin > SHA256SUMS.txt
           )
-          echo '0x1000 bootloader.bin' > "$OUT/FLASH_OFFSETS.txt"
-          echo '0x8000 partitions.bin' >> "$OUT/FLASH_OFFSETS.txt"
-          echo '0xE000 boot_app0.bin' >> "$OUT/FLASH_OFFSETS.txt"
-          echo '0x10000 firmware.bin' >> "$OUT/FLASH_OFFSETS.txt"
+          printf '%s\n'             '0x1000 bootloader.bin'             '0x8000 partitions.bin'             '0xE000 boot_app0.bin'             '0x10000 firmware.bin' > "$OUT/FLASH_OFFSETS.txt"
 
       - name: Commit generated binaries if changed
         shell: bash
@@ -63,8 +60,8 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add firmware/bin
           if git diff --cached --quiet; then
-            echo 'Firmware binaries already match source.'
+            echo 'Firmware binaries already match REV1T source.'
             exit 0
           fi
-          git commit -m 'build: refresh REV1S four-BIN package [skip ci]'
+          git commit -m 'build: refresh REV1T four-BIN package [skip ci]'
           git push

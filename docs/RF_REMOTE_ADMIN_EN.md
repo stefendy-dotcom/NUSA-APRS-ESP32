@@ -1,6 +1,6 @@
 # RF Remote Admin — English
 
-REV1S accepts short configuration commands through **APRS Messages received directly over RF**.
+REV1T accepts short configuration commands through **APRS Messages received directly over RF**. All REV1S commands remain available and REV1T adds GPS Tracker control.
 
 ## Authorization
 
@@ -61,10 +61,34 @@ If the transmitting APRS application or radio includes a standard APRS message n
 | `ISPATH WIDE2-1` | Sets the RF path used when forwarding packets from **APRS-IS → RF**. |
 | `ISPATH DIRECT` | Sends **APRS-IS → RF** packets directly without a digipeater path. |
 | `COMMENT text` | Changes the device APRS comment. Maximum length: **100 characters**. Example: `COMMENT NUSA APRS IGATE`. |
+| `TRK ON` / `TRK OFF` | Enables or disables the **REV1T GPS Tracker** independently from Digi/iGate/IS→RF. |
+| `GPS` | Requests compact GPS status. Example: `FIX=1 SAT=10 SPD=45 CRS=128`; without fix: `FIX=0 SAT=3`. |
+| `TMODE FIX` | Selects **Fixed Interval** tracker mode. |
+| `TMODE SMART` | Selects **SmartBeaconing**. |
+| `TSEC 120` | Sets the fixed tracker interval. Range **30–3600 seconds**. |
+| `TPATH WIDE2-1` | Sets the dedicated tracker RF path. |
+| `TPATH DIRECT` | Sends tracker RF direct without a digipeater path. |
+| `TOUT RF` | Tracker output is RF only. |
+| `TOUT IS` | Tracker output is APRS-IS only. |
+| `TOUT BOTH` | Tracker output is RF and APRS-IS. |
+| `TBCN` | Requests a **manual tracker beacon**. GPS mode requires a fresh fix; AUTO may use a valid static fallback. RF still uses the TX queue/CSMA. |
 | `OLED ON` / `OLED OFF` | Enables or disables the OLED display. |
 | `SAVE` | Saves all remote changes to **NVS**, so they remain active after restart or power-off. |
 | `CANCEL` | Cancels unsaved remote changes and restores the last saved configuration. |
 | `REBOOT` | Remotely restarts the ESP32 after the `OK REBOOT` reply has been queued for RF transmission. |
+
+### REV1T tracker command example
+
+```text
+GPS
+TRK ON
+TMODE SMART
+TPATH WIDE2-1
+TOUT BOTH
+SAVE
+```
+
+`TRK`, `TMODE`, `TSEC`, `TPATH` and `TOUT` are remote configuration changes: a trailing `*` means they have not yet been `SAVE`d. `TBCN` only requests a beacon and does not change configuration.
 
 ### Meaning of the `STAT` reply
 

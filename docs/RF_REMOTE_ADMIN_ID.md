@@ -1,6 +1,6 @@
 # RF Remote Admin — Bahasa Indonesia
 
-REV1S dapat menerima command konfigurasi melalui **APRS Message yang diterima langsung dari RF**.
+REV1T dapat menerima command konfigurasi melalui **APRS Message yang diterima langsung dari RF**. Semua command REV1S tetap dipertahankan dan REV1T menambahkan kontrol GPS Tracker.
 
 ## Otorisasi
 
@@ -61,10 +61,34 @@ Bila aplikasi/radio pengirim menggunakan APRS message number, perangkat juga men
 | `ISPATH WIDE2-1` | Mengatur path RF yang digunakan saat perangkat meneruskan packet **APRS-IS → RF**. |
 | `ISPATH DIRECT` | Mengatur packet **APRS-IS → RF** dikirim langsung tanpa digipeater path. |
 | `COMMENT teks` | Mengubah comment APRS perangkat. Maksimum **100 karakter**. Contoh: `COMMENT NUSA APRS IGATE`. |
+| `TRK ON` / `TRK OFF` | Mengaktifkan atau mematikan **GPS Tracker REV1T** tanpa mengubah status Digi/iGate/IS→RF. |
+| `GPS` | Meminta status GPS singkat. Contoh balasan: `FIX=1 SAT=10 SPD=45 CRS=128`; tanpa fix: `FIX=0 SAT=3`. |
+| `TMODE FIX` | Menggunakan mode tracker **Fixed Interval**. |
+| `TMODE SMART` | Menggunakan mode **SmartBeaconing**. |
+| `TSEC 120` | Mengatur interval Fixed tracker. Range **30–3600 detik**. |
+| `TPATH WIDE2-1` | Mengatur path RF khusus tracker. |
+| `TPATH DIRECT` | Mengatur tracker RF direct tanpa digipeater path. |
+| `TOUT RF` | Tracker mengirim ke RF saja. |
+| `TOUT IS` | Tracker mengirim ke APRS-IS saja. |
+| `TOUT BOTH` | Tracker mengirim ke RF dan APRS-IS. |
+| `TBCN` | Meminta **manual tracker beacon**. Position Mode GPS memerlukan fresh fix; AUTO boleh memakai static fallback yang valid. RF tetap masuk TX queue/CSMA. |
 | `OLED ON` / `OLED OFF` | Mengaktifkan atau mematikan display OLED. |
 | `SAVE` | Menyimpan semua perubahan remote ke **NVS**, sehingga tetap berlaku setelah restart/power-off. |
 | `CANCEL` | Membatalkan perubahan remote yang belum di-`SAVE` dan mengembalikan konfigurasi tersimpan terakhir. |
 | `REBOOT` | Me-restart ESP32 secara remote setelah balasan `OK REBOOT` diantrikan untuk dikirim. |
+
+### Contoh command Tracker REV1T
+
+```text
+GPS
+TRK ON
+TMODE SMART
+TPATH WIDE2-1
+TOUT BOTH
+SAVE
+```
+
+`TRK`, `TMODE`, `TSEC`, `TPATH` dan `TOUT` adalah perubahan konfigurasi remote: tanda `*` pada reply berarti perubahan belum `SAVE`. `TBCN` hanya meminta beacon saat itu dan tidak mengubah konfigurasi.
 
 ### Arti singkatan pada balasan `STAT`
 

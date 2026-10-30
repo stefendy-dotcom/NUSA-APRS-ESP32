@@ -1,28 +1,34 @@
-# NUSA APRS ESP32 — iGate + Digipeater REV1S
+# NUSA APRS ESP32 — iGate + Digipeater + GPS Tracker REV1T
 
 [![Total Firmware Downloads](https://img.shields.io/github/downloads/stefendy-dotcom/NUSA-APRS-ESP32/total?label=Firmware%20Downloads&color=blue)](https://github.com/stefendy-dotcom/NUSA-APRS-ESP32/releases)
 
-📦 [Download REV1S firmware (4 BIN ZIP)](https://github.com/stefendy-dotcom/NUSA-APRS-ESP32/releases/download/REV1S/NUSA_APRS_ESP32_REV1S_FLASH.zip)
+📦 [Download REV1T firmware (4 BIN ZIP)](https://github.com/stefendy-dotcom/NUSA-APRS-ESP32/releases/download/REV1T/NUSA_APRS_ESP32_REV1T_FLASH.zip)
 
 *The counter tracks downloads of GitHub Release assets only; source-code archives downloaded through **Code → Download ZIP** are not included.*
 
-**Classic ESP32 WROOM / DevKit + external VHF radio — Bell 202 / AX.25 APRS 1200 baud**
+**Classic ESP32 WROOM / DevKit + external VHF radio + UART NMEA GPS — Bell 202 / AX.25 APRS 1200 baud**
 
 🇮🇩 [Bahasa Indonesia](README_ID.md) · 🇬🇧 [English](README_EN.md)
 
-NUSA APRS ESP32 combines an APRS RF iGate, RF digipeater, APRS-IS client, web configuration, SH1106/SSD1306 OLED display, weather parsing, last-heard RF/IS lists, and RF Remote Admin. REV1S preserves the proven REV1R receive/decoder engine and adds short RF administration commands for two exact callsign+SSID administrators.
+REV1T keeps the proven REV1S RF receive/iGate/digipeater engine frozen and adds a modular, non-blocking GPS APRS tracker. The tracker is disabled by default, so an upgrade from REV1S continues to operate normally even with no GPS connected.
 
 ## Highlights
 
 - Bell 202 1200-baud AFSK RX/TX, AX.25/FCS.
-- Parallel RX decoders: Decoder A (MicroModem lineage), B-RAW, B-EQ125 and B-EQ130.
+- Frozen REV1S receive engine: Decoder A (MicroModem lineage), B-RAW, B-EQ125 and B-EQ130.
 - RF → APRS-IS iGate and WIDE digipeater.
-- Local APRS-IS → RF message gating (i/30/0 default).
-- Wi-Fi AP/STA web configuration and live monitor.
-- 128×64 OLED: SH1106 field-tested; SSD1306 supported.
-- OLED pages: NUSA logo, status, network, RF/decoder, six last-heard RF stations, six last-heard APRS-IS stations, and RF weather.
-- RF Remote Admin: two exact callsign+SSID administrators; non-admin requests are silently ignored on RF.
-- RX WAV diagnostics and decoder telemetry.
+- Local APRS-IS → RF message gating (`i/30/0` default).
+- GPS tracker with NMEA RMC/GGA parsing for NEO-6M, NEO-M8N, NEO-M10N and compatible receivers.
+- Position modes: STATIC, GPS and AUTO (GPS with static fallback).
+- Tracker outputs: RF only, APRS-IS only or RF + APRS-IS.
+- Fixed interval beaconing and SmartBeaconing with speed-based rate and corner pegging.
+- Tracker RF path independent from normal beacon, IS→RF and RF Remote Admin reply paths.
+- Standard APRS uncompressed position with optional course/speed and altitude.
+- GPS state protection: NO GPS, GPS SEARCH, GPS FIX and GPS STALE; invalid/0,0 fallback is not transmitted.
+- RF Remote Admin adds `TRK`, `GPS`, `TMODE`, `TSEC`, `TPATH`, `TOUT` and `TBCN`.
+- Web UI live GPS/tracker status and manual tracker beacon.
+- OLED GPS Tracker page.
+- Wi-Fi AP/STA configuration, live monitor, RF weather, last-heard RF/IS lists and RX WAV diagnostics.
 
 ## Default pinout
 
@@ -35,20 +41,53 @@ NUSA APRS ESP32 combines an APRS RF iGate, RF digipeater, APRS-IS client, web co
 | TX LED | GPIO4 |
 | OLED SDA | GPIO21 |
 | OLED SCL | GPIO22 |
+| GPS UART RX | GPIO16 |
+| GPS UART TX | GPIO17 |
+
+GPS pins are configurable from the Web UI. The firmware refuses to start the GPS UART when the configured GPS pins conflict with active APRS RX/TX, PTT/LED or OLED pins.
+
+## GPS wiring
+
+Default UART wiring:
+
+- GPS TX → ESP32 GPIO16 (GPS RX setting)
+- GPS RX → ESP32 GPIO17 (optional; set GPS TX GPIO to `-1` when unused)
+- GPS GND → ESP32 GND
+- GPS VCC → the voltage required by the actual GPS module/board
+
+Do not assume every GPS board accepts 5 V. Check the module carrier specifications.
+
+Supported selectable baud rates: **9600, 38400 and 115200**.
+
+## Tracker defaults
+
+- Tracker: OFF
+- Position mode: AUTO
+- Output: RF
+- RF path: WIDE2-1
+- Symbol: `/>` (car)
+- Fixed interval: 120 s
+- GPS stale timeout: 15 s
+- Minimum automatic tracker TX interval: 15 s
+- SmartBeacon slow: 5 km/h / 600 s
+- SmartBeacon fast: 80 km/h / 60 s
+- Turn angle: 30°
+- Turn slope: 255
+- Turn time: 15 s
+- Stationary threshold: 3 km/h
+
+The legacy REV1S RF/IS site beacon remains available separately from the new GPS tracker.
 
 ## RF interface schematic
 
 ![NUSA APRS ESP32 RF interface schematic](hardware/skema.jpeg)
 
-The uploaded RF interface schematic uses:
+The RF interface remains unchanged from REV1S:
 
 - RX: J1 SPK/audio → VR1 10 kΩ → C1 1 µF → R1 1 kΩ → GPIO36/VP.
-- RX ADC bias: R2 100 kΩ to 3V3 and R3 100 kΩ to GND, giving approximately 1.65 V; C2 2.2 nF goes from the GPIO36 bias node to GND.
-- PTT: GPIO25 → R4 1 kΩ → Q1 2N3904 base, with R5 10 kΩ base pulldown. Q1 is used as an NPN open-collector switch to pull the radio PTT line LOW.
+- RX ADC bias: R2 100 kΩ to 3V3 and R3 100 kΩ to GND; C2 2.2 nF to GND.
+- PTT: GPIO25 → R4 1 kΩ → Q1 2N3904 with R5 10 kΩ pulldown.
 - TX: GPIO26 → R6 1 kΩ → C3 1 µF → VR2 10 kΩ → radio MIC/audio TX.
-- J1, J2 and J3 use a common GND on pin 2.
-
-For C3, the schematic recommends a non-polar 1 µF capacitor when the radio MIC input has unknown DC bias. If an electrolytic is used, its positive side should face the side with the higher DC voltage.
 
 ## Four BIN flash package
 
@@ -59,18 +98,28 @@ For C3, the schematic recommends a non-polar 1 µF capacitor when the radio MIC 
 | 0xE000 | boot_app0.bin |
 | 0x10000 | firmware.bin |
 
-Binaries are built for **ESP32 Dev Module / 4 MB flash / Arduino-ESP32 Core 3.3.11**. See [docs/BUILD_FLASH.md](docs/BUILD_FLASH.md).
+Target: **ESP32 Dev Module / 4 MB flash / Arduino-ESP32 Core 3.3.11**.
+
+See [docs/BUILD_FLASH.md](docs/BUILD_FLASH.md).
 
 ## Documentation
 
-- Indonesian: [User guide](docs/USER_GUIDE_ID.md) · [Adjustment](docs/ADJUSTMENT_ID.md) · [RF Remote Admin](docs/RF_REMOTE_ADMIN_ID.md)
-- English: [User guide](docs/USER_GUIDE_EN.md) · [Adjustment](docs/ADJUSTMENT_EN.md) · [RF Remote Admin](docs/RF_REMOTE_ADMIN_EN.md)
+- Indonesian: [User guide](docs/USER_GUIDE_ID.md) · [GPS Tracker](docs/GPS_TRACKER_ID.md) · [Adjustment](docs/ADJUSTMENT_ID.md) · [RF Remote Admin](docs/RF_REMOTE_ADMIN_ID.md)
+- English: [User guide](docs/USER_GUIDE_EN.md) · [GPS Tracker](docs/GPS_TRACKER_EN.md) · [Adjustment](docs/ADJUSTMENT_EN.md) · [RF Remote Admin](docs/RF_REMOTE_ADMIN_EN.md)
 - Hardware: [RF schematic](hardware/skema.jpeg) · [RF interface BOM](hardware/BOM.md)
-- Source: [REV1S sketch folder](source/NUSA_APRS_IGATE_DIGI_REV1S_RF_REMOTE_ADMIN/)
+- Source: [REV1T sketch folder](source/NUSA_APRS_IGATE_DIGI_REV1T_GPS_TRACKER/)
 - Validation: [docs/VALIDATION.md](docs/VALIDATION.md)
 
 ## Build validation
 
-REV1S compiled successfully with Arduino CLI 1.5.1 and **Arduino-ESP32 Core 3.3.11** for esp32:esp32:esp32. The verified build used **1,105,807 bytes (84%)** application flash and **76,744 bytes (23%)** global RAM.
+REV1T compiles successfully with Arduino CLI 1.5.1 and **Arduino-ESP32 Core 3.3.11** for `esp32:esp32:esp32`.
 
-> RF Remote Admin uses exact callsign+SSID whitelisting, not cryptographic authentication. APRS source callsigns can be spoofed; use the feature with that limitation understood.
+Verified local build:
+
+- application flash: **1,139,979 bytes (86%)**
+- global RAM: **77,184 bytes (23%)**
+- free for local variables in the build report: **250,496 bytes**
+
+The AFSK/AX.25/CRC/FIFO/HDLC files in REV1T are byte-identical to REV1S. REV1T adds no new application FreeRTOS task, mutex or semaphore; the existing low-level AFSK implementation is retained unchanged.
+
+> RF Remote Admin uses exact callsign+SSID whitelisting, not cryptographic authentication. APRS source callsigns can be spoofed.

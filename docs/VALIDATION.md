@@ -1,30 +1,93 @@
-# Validation — REV1S
+# Validation — REV1T GPS Tracker
 
 ## Source lineage
-REV1S is based on the stable REV1R OLED firmware. RF Remote Admin was added without intentionally changing the established AFSK/AX.25 decoder behavior.
+
+REV1T is built from `NUSA_APRS_IGATE_DIGI_REV1S_RF_REMOTE_ADMIN`.
+
+The following RF receive/decoder files are byte-identical between REV1S and REV1T:
+
+- AFSK.cpp
+- AFSK.h
+- AX25.cpp
+- AX25.h
+- CRC-CCIT.cpp
+- CRC-CCIT.h
+- FIFO.h
+- HDLC.h
+
+REV1T adds GPS/tracker logic in the application layer plus `NusaGpsTracker.cpp/.h`.
+
+No new application `xTaskCreate`, `xTaskCreatePinnedToCore`, mutex, semaphore or portMUX was added by REV1T. The low-level AFSK source already contains its pre-existing REV1S receive task and is unchanged.
 
 ## Real compile
-Validated on server stefendy with:
+
+Validated on server `stefendy` with:
+
 - Arduino CLI 1.5.1
 - Arduino-ESP32 Core 3.3.11
-- FQBN esp32:esp32:esp32
+- FQBN `esp32:esp32:esp32`
 
-Result:
-- compile exit code: 0
-- application flash: 1,105,807 bytes (84% of 1,310,720)
-- global RAM: 76,744 bytes (23% of 327,680)
-- free for local variables at build report: 250,936 bytes
+Final result:
 
-The four normal ESP32 images were produced: bootloader, partition table, boot_app0 and application firmware.
+- compile exit code: **0**
+- application flash: **1,139,979 bytes (86% of 1,310,720)**
+- global RAM: **77,184 bytes (23% of 327,680)**
+- free for local variables in build report: **250,496 bytes**
 
-## Remote-build SHA256 reference
-The independently compiled reference build on stefendy produced:
-- bootloader.bin: 427f96e10c620c4f062dab15da54fc45494d897e8397ae6f3aecc98c42d7e379
-- partitions.bin: 148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1
-- boot_app0.bin: f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0
-- firmware.bin: cfbcac9e3791fb2301ee0031ac4acc2bf3550b5d14c9ed287c0ee9f5d0a08e9e
+## Final four-BIN SHA256
 
-GitHub Actions also writes SHA256SUMS.txt for the binaries produced by the published workflow. Build artifacts may be re-generated; use the checksum file located beside the BIN files when flashing a downloaded copy.
+- `bootloader.bin`: `427f96e10c620c4f062dab15da54fc45494d897e8397ae6f3aecc98c42d7e379`
+- `partitions.bin`: `148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1`
+- `boot_app0.bin`: `f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0`
+- `firmware.bin`: `5a192b76089979aa97ac05639475cd0edbc910a366f4373e8fe5712fde9e8ba4`
 
-## Field notes
-The dual receive engine has previously decoded real RF packets using DEC-A and the tolerant B-EQ125/B-EQ130 paths. One current PCB/radio installation required RX Squelch ADC 135 for stable idle-channel CLEAR.
+The GitHub Actions build may regenerate the application image from the same source; use the `SHA256SUMS.txt` beside the downloaded binaries as the authoritative checksum for that build.
+
+## Automated source/logic validation
+
+A deterministic validation run completed **63/63 PASS**.
+
+Checks included:
+
+- frozen REV1S engine hashes;
+- tracker defaults OFF;
+- GPS service limited to 96 bytes per main loop iteration;
+- no blocking `while (!gpsFix)`;
+- RMC and GGA parser presence;
+- GPS stale protection;
+- default 0,0 static fallback suppression;
+- tracker RF transmission through `TX_TRACKER` and the REV1S TX queue;
+- dedicated tracker path/output/position modes;
+- Fixed and SmartBeacon modes;
+- retry throttling when an output is unavailable;
+- manual tracker beacon route;
+- all seven new RF Remote Admin tracker operations;
+- read/write presence of all tracker NVS keys;
+- no new FreeRTOS synchronization/task constructs in REV1T application/GPS code;
+- known NMEA checksum/coordinate/speed conversion references;
+- SmartBeacon stationary/slow/mid/fast interval references;
+- SmartBeacon turn-threshold reference;
+- presence of all four BIN images, offsets and checksums.
+
+## Prompt test matrix
+
+| Test | Build/source validation | Physical field validation |
+|---|---|---|
+| GPS not installed, REV1S functions continue | Design/default checks PASS | Required on ESP32 |
+| GPS connected without fix, no invalid position TX | Logic checks PASS | Required on ESP32/GPS |
+| GPS fix shown in Web/OLED | Code path + compile PASS | Required on ESP32/GPS |
+| Fixed RF beacon interval | Scheduler check PASS | Required over RF |
+| APRS-IS tracker beacon | Code path + compile PASS | Required with live APRS-IS |
+| SmartBeacon stationary | Formula check PASS | Required in motion test |
+| SmartBeacon moving | Formula check PASS | Required in motion test |
+| Corner pegging | Formula/threshold check PASS | Required in driving test |
+| Digi + iGate + Tracker simultaneously | Frozen engine + compile PASS | Required under RF load |
+| Heavy APRS RF traffic | RX engine frozen byte-identical | Required RF stress test |
+| GPS unplug while running | stale/disconnect logic PASS | Required hardware test |
+| GPS returns | restore/fix transition logic PASS | Required hardware test |
+
+## Important validation boundary
+
+The remote build environment can compile and inspect the firmware but does **not** have the target ESP32, VHF radio and GPS receiver physically attached. Therefore the hardware/over-the-air column above is intentionally not marked as passed.
+
+Do not treat compile/static validation as proof of RF field performance. The first REV1T field test should verify GPS UART, AFSK RX sensitivity, RF beacon decode, APRS-IS packet formatting and simultaneous Digi/iGate/Tracker operation on the actual hardware.
