@@ -91,3 +91,16 @@ Checks included:
 The remote build environment can compile and inspect the firmware but does **not** have the target ESP32, VHF radio and GPS receiver physically attached. Therefore the hardware/over-the-air column above is intentionally not marked as passed.
 
 Do not treat compile/static validation as proof of RF field performance. The first REV1T field test should verify GPS UART, AFSK RX sensitivity, RF beacon decode, APRS-IS packet formatting and simultaneous Digi/iGate/Tracker operation on the actual hardware.
+
+## GitHub Actions CI build
+
+GitHub Actions run `41045076034` completed successfully for REV1T source commit `df1aa9dbd42d620826f7d74e1dcb3d1599f87769` and committed the generated four-BIN package as `dd1258f4857ad382c677cdc321c870f4019394db`.
+
+Authoritative checksums of that CI-generated package:
+
+- `bootloader.bin`: `427f96e10c620c4f062dab15da54fc45494d897e8397ae6f3aecc98c42d7e379`
+- `partitions.bin`: `148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1`
+- `boot_app0.bin`: `f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0`
+- `firmware.bin`: `968c2bf25b97e54d0423509921eb88ebe411233d5033479656e36fcbd5ec95ed`
+
+The CI application binary hash differs from the independently compiled server reference because Arduino/ESP32 builds are not treated as reproducible-byte builds here. The published release uses the **GitHub Actions-generated** BIN package and its accompanying `SHA256SUMS.txt`.
