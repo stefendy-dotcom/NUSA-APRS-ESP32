@@ -1,11 +1,11 @@
-# stefendy[bot] — NUSA GitHub App bootstrap
+# stefendy-nusa[bot] — NUSA GitHub App bootstrap
 
-> Status: prepared on `chore/stefendy-bot-bootstrap` branches only. The six repositories' production `main` branches remain unchanged. **Do not merge until the GitHub App, Client ID and private key secret have been installed/configured.**
+> Status: owner supplied `https://github.com/settings/apps/stefendy-nusa`. The prepared branch now targets **`stefendy-nusa[bot]`**. **This does not confirm installation, secrets, or working authentication.** The six production `main` branches remain unchanged; do not merge until those prerequisites are complete and reviewed.
 
 ## GitHub account / app identity
 
 - Owner: `stefendy-dotcom`
-- Requested GitHub App **name**: `stefendy` (desired actor: `stefendy[bot]`). Exact name subject to GitHub's global availability check.
+- GitHub App settings URL provided by owner: `https://github.com/settings/apps/stefendy-nusa` (desired actor: `stefendy-nusa[bot]`). Authentication and installation still require verification.
 - Homepage URL: `https://github.com/stefendy-dotcom`
 - Description: `NUSA project automation bot for APRS, radio firmware and NUSA RoIP releases.`
 - Webhooks: **Active OFF** while used only for installation authentication.
@@ -15,13 +15,13 @@
 
 ## Owner-only setup (one time)
 
-1. Sign in as `stefendy-dotcom`, open `https://github.com/settings/apps/new`, register the GitHub App as `stefendy` with the settings above.
+1. Sign in as `stefendy-dotcom`, open `https://github.com/settings/apps/stefendy-nusa` and confirm the registered app has **Contents: Read and write** and **Only on this account**. No need to register a second app.
 2. Open its settings. Record **Client ID** (not a secret), generate and download a **private key** `.pem` (secret). Do **not** commit, upload, or send the PEM key in chat.
 3. Use **Install App** on `stefendy-dotcom`; choose the six NUSA repositories or `All repositories` if that broader access is intended. Selecting six repos will not automatically cover future repos.
 4. For **each repository**: Settings → Secrets and variables → Actions → Variables: set `NUSA_APP_CLIENT_ID` to the actual Client ID.
 5. For **each repository**: Settings → Secrets and variables → Actions → Secrets: set `NUSA_APP_PRIVATE_KEY` to the exact full PEM key including BEGIN/END lines.
-6. Review and merge the prepared branch `chore/stefendy-bot-bootstrap` **after** those values are ready. Then Actions → `Verify stefendy[bot] GitHub App` → Run workflow. The verifier does not commit, push or publish.
-7. Confirm log says `Verified GitHub App identity: stefendy[bot]`. In `NUSA-UVK5-APRS-DIGI-IGATE` seven legacy workflows have also been migrated **on the prepared branch** to use the App token for git pushes and release operations. Verify before production use.
+6. Review and merge the prepared branch `chore/stefendy-bot-bootstrap` **after** those values are ready. Then Actions → `Verify stefendy-nusa[bot] GitHub App` → Run workflow. The verifier does not commit, push or publish. The workflow filename remains `verify-stefendy-bot.yml`.
+7. Confirm log says `Verified GitHub App identity: stefendy-nusa[bot]`. In `NUSA-UVK5-APRS-DIGI-IGATE` seven legacy workflows have also been migrated **on the prepared branch** to use the App token for git pushes and release operations. Verify before production use.
 
 ## Repositories staged
 
@@ -51,7 +51,7 @@ Before checkout, add an app-token creation step:
 After checkout, configure the Git identity from the real GitHub App bot ID rather than faking a name:
 
 ```bash
-BOT_SLUG='stefendy'
+BOT_SLUG='stefendy-nusa'
 BOT_LOGIN="${BOT_SLUG}[bot]"
 BOT_ID="$(gh api "/users/${BOT_LOGIN}" --jq '.id')"
 git config user.name "$BOT_LOGIN"
