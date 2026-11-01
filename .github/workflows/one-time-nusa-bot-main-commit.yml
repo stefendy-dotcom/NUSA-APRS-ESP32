@@ -1,0 +1,68 @@
+name: One-time stefendy-nusa bot main attribution
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/one-time-nusa-bot-main-commit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  document-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create installed NUSA App token
+        id: bot
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.NUSA_APP_CLIENT_ID }}
+          private-key: ${{ secrets.NUSA_APP_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Checkout main with bot token
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.bot.outputs.token }}
+          ref: main
+          fetch-depth: 1
+
+      - name: Commit bot identity document and remove this one-time workflow
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          BOT_SLUG: ${{ steps.bot.outputs.app-slug }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BOT_LOGIN="${BOT_SLUG}[bot]"
+          [[ "$BOT_LOGIN" == 'stefendy-nusa[bot]' ]] || { echo 'Unexpected GitHub App'; exit 1; }
+          BOT_ID="$(gh api "/users/${BOT_LOGIN}" --jq '.id')"
+          git config user.name "$BOT_LOGIN"
+          git config user.email "${BOT_ID}+${BOT_LOGIN}@users.noreply.github.com"
+          cat > .github/NUSA_BOT_IDENTITY.md <<'DOC'
+          # NUSA GitHub Automation Bot
+          
+          Official automation identity for new NUSA GitHub App-authored commits:
+          **`stefendy-nusa[bot]`**.
+          
+          Production automation must authenticate with the installed GitHub App
+          (`NUSA_APP_CLIENT_ID` variable plus `NUSA_APP_PRIVATE_KEY` Actions secret).
+          Changing only `git config user.name` while still using `GITHUB_TOKEN`
+          does not replace the actual GitHub App authentication.
+          
+          Historical commits made by `github-actions[bot]` remain part of the
+          original firmware build provenance and are intentionally preserved.
+          DOC
+          git add .github/NUSA_BOT_IDENTITY.md
+          git rm .github/workflows/one-time-nusa-bot-main-commit.yml
+          git commit -m 'docs: record official NUSA GitHub App identity'
+          SHA="$(git rev-parse HEAD)"
+          git push origin HEAD:main
+          AUTHOR="$(gh api "/repos/${GITHUB_REPOSITORY}/commits/${SHA}" --jq '.author.login')"
+          COMMITTER="$(gh api "/repos/${GITHUB_REPOSITORY}/commits/${SHA}" --jq '.committer.login')"
+          echo "MAIN_BRANCH_COMMIT=${SHA}"
+          echo "GITHUB_AUTHOR=${AUTHOR}"
+          echo "GITHUB_COMMITTER=${COMMITTER}"
+          [[ "$AUTHOR" == "$BOT_LOGIN" && "$COMMITTER" == "$BOT_LOGIN" ]]
+          echo 'SUCCESS: NUSA GitHub App committed to main; one-time workflow deleted.'
