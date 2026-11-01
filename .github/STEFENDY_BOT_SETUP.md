@@ -1,6 +1,6 @@
 # stefendy[bot] — NUSA GitHub App bootstrap
 
-> Status: staged only. This repository's default branch and production release workflows remain unchanged until app registration, credential setup, and review are completed.
+> Status: prepared on `chore/stefendy-bot-bootstrap` branches only. The six repositories' production `main` branches remain unchanged. **Do not merge until the GitHub App, Client ID and private key secret have been installed/configured.**
 
 ## GitHub account / app identity
 
@@ -21,7 +21,7 @@
 4. For **each repository**: Settings → Secrets and variables → Actions → Variables: set `NUSA_APP_CLIENT_ID` to the actual Client ID.
 5. For **each repository**: Settings → Secrets and variables → Actions → Secrets: set `NUSA_APP_PRIVATE_KEY` to the exact full PEM key including BEGIN/END lines.
 6. Review and merge the prepared branch `chore/stefendy-bot-bootstrap` **after** those values are ready. Then Actions → `Verify stefendy[bot] GitHub App` → Run workflow. The verifier does not commit, push or publish.
-7. Confirm log says `Verified GitHub App identity: stefendy[bot]`. Only then migrate existing workflows to use the App token for ALL mutating GitHub API calls, git pushes, and release operations.
+7. Confirm log says `Verified GitHub App identity: stefendy[bot]`. In `NUSA-UVK5-APRS-DIGI-IGATE` seven legacy workflows have also been migrated **on the prepared branch** to use the App token for git pushes and release operations. Verify before production use.
 
 ## Repositories staged
 
@@ -62,7 +62,7 @@ Set `GH_TOKEN: ${{ steps.bot.outputs.token }}` for all `gh release` operations a
 
 ## Existing workflow issues confirmed by audit
 
-Seven workflows under `NUSA-UVK5-APRS-DIGI-IGATE/.github/workflows` currently hard-code `github-actions[bot]`:
+Seven workflows under `NUSA-UVK5-APRS-DIGI-IGATE/.github/workflows` hard-code `github-actions[bot]` on `main`; all seven have verified-identity/authentication migration changes **staged on the separate bot-bootstrap branch**:
 
 - `update-download-counts.yml`
 - `publish-igate-rev1a.yml`
@@ -74,7 +74,7 @@ Seven workflows under `NUSA-UVK5-APRS-DIGI-IGATE/.github/workflows` currently ha
 
 **Do not mass-replace the bot name alone**: using `GITHUB_TOKEN` with a fake commit author is not a real GitHub App-authored push/release. Ensure authentication **and** commit author identity both use the installed GitHub App.
 
-**Release safety:** A number of legacy publish workflows delete and recreate releases. Re-running them can reset asset download counts. Do not enable or merge changes that trigger these automatically without reviewing the release behavior. Do not rewrite firmware binaries/checksums.
+**Release safety:** A number of legacy publish workflows delete and recreate releases. Re-running them can reset asset download counts. To prevent a merge from automatically re-publishing historical firmware, all six `publish-*.yml` workflows on the prepared branch are set to **manual `workflow_dispatch` only** (the download-counter workflow keeps its release/schedule triggers). Publishing firmware must therefore be done manually after migration. Do not rewrite firmware binaries/checksums.
 
 **Limit:** GitHub Actions remains the CI runner and its UI may still display GitHub Actions as the execution service. The App controls commits, PRs, releases and API writes when used correctly; it does not rename GitHub's built-in `github-actions[bot]` user or the separate ChatGPT GitHub connector.
 
