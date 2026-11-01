@@ -1,0 +1,65 @@
+name: One-time stefendy-nusa bot write smoke test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/stefendy-nusa-write-smoke-test.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create authentic stefendy-nusa installation token
+        id: bot
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.NUSA_APP_CLIENT_ID }}
+          private-key: ${{ secrets.NUSA_APP_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Checkout using GitHub App token
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.bot.outputs.token }}
+          fetch-depth: 1
+
+      - name: Write temporary branch, verify actual commit actor, then clean up
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          BOT_SLUG: ${{ steps.bot.outputs.app-slug }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BOT_LOGIN="${BOT_SLUG}[bot]"
+          [[ "$BOT_LOGIN" == 'stefendy-nusa[bot]' ]] || { echo "Wrong App identity: $BOT_LOGIN"; exit 1; }
+          BOT_ID="$(gh api "/users/${BOT_LOGIN}" --jq '.id')"
+          git config user.name "$BOT_LOGIN"
+          git config user.email "${BOT_ID}+${BOT_LOGIN}@users.noreply.github.com"
+          BRANCH="bot-write-smoke-${GITHUB_RUN_ID}"
+          PUSHED=0
+          cleanup() {
+            if [[ "$PUSHED" == '1' ]]; then
+              gh api -X DELETE "/repos/${GITHUB_REPOSITORY}/git/refs/heads/${BRANCH}" >/dev/null || echo "WARNING: temporary branch ${BRANCH} may require manual removal"
+            fi
+          }
+          trap cleanup EXIT
+          git switch -c "$BRANCH"
+          mkdir -p .github
+          printf 'Temporary test of authentic GitHub App authored commit. Run: %s\n' "$GITHUB_RUN_ID" > .github/stefendy-nusa-write-smoke.txt
+          git add .github/stefendy-nusa-write-smoke.txt
+          git commit -m 'test: verify stefendy-nusa[bot] commit actor on disposable branch'
+          SHA="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/${BRANCH}"
+          PUSHED=1
+          AUTHOR="$(gh api "/repos/${GITHUB_REPOSITORY}/commits/${SHA}" --jq '.author.login')"
+          COMMITTER="$(gh api "/repos/${GITHUB_REPOSITORY}/commits/${SHA}" --jq '.committer.login')"
+          echo "Observed GitHub author: $AUTHOR"
+          echo "Observed GitHub committer: $COMMITTER"
+          [[ "$AUTHOR" == "$BOT_LOGIN" ]] || { echo 'Wrong commit author'; exit 1; }
+          [[ "$COMMITTER" == "$BOT_LOGIN" ]] || { echo 'Wrong commit committer'; exit 1; }
+          echo 'SUCCESS: Actual Git push recorded as stefendy-nusa[bot]; release and main untouched.'
