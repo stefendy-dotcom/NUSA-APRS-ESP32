@@ -1,0 +1,100 @@
+name: Refresh REV1T Auto Mode Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/refresh-rev1t-auto-release.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout finalized REV1T build commit
+        uses: actions/checkout@v4
+        with:
+          ref: 3fba47151ce3cf2c29068579d971678a52c527bb
+          fetch-depth: 0
+
+      - name: Build release package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release/NUSA_APRS_ESP32_REV1T
+          cp firmware/bin/bootloader.bin release/NUSA_APRS_ESP32_REV1T/
+          cp firmware/bin/partitions.bin release/NUSA_APRS_ESP32_REV1T/
+          cp firmware/bin/boot_app0.bin release/NUSA_APRS_ESP32_REV1T/
+          cp firmware/bin/firmware.bin release/NUSA_APRS_ESP32_REV1T/
+          cp firmware/bin/FLASH_OFFSETS.txt release/NUSA_APRS_ESP32_REV1T/
+          cp firmware/bin/SHA256SUMS.txt release/NUSA_APRS_ESP32_REV1T/
+          cp firmware/bin/README.md release/NUSA_APRS_ESP32_REV1T/
+          cd release
+          zip -9 -r NUSA_APRS_ESP32_REV1T_FLASH.zip NUSA_APRS_ESP32_REV1T
+          sha256sum NUSA_APRS_ESP32_REV1T_FLASH.zip > REV1T_RELEASE_SHA256.txt
+
+      - name: Write release notes
+        shell: bash
+        run: |
+          cat > release/RELEASE_NOTES.md <<'EOF'
+          # NUSA APRS ESP32 REV1T — GPS Tracker + Auto Mode Switch
+
+          REV1T keeps the proven REV1S AFSK/AX.25 receive engine unchanged and adds the GPS tracker plus automatic iGate/digipeater mode switching.
+
+          ## Auto Mode Switch
+
+          Auto Mode is enabled by default:
+
+          - APRS-IS connected: iGate ON, Digipeater OFF.
+          - Internet/APRS-IS unavailable: iGate OFF, Digipeater ON.
+          - APRS-IS reconnects: automatically returns to iGate and disables Digipeater.
+          - Detection is end-to-end using the APRS-IS session, so Wi-Fi without usable Internet falls back to Digipeater.
+          - Manual iGate/Digi settings remain available when Auto Mode is disabled.
+          - RF Remote command: AMODE ON/OFF. Manual DIGI/IGATE commands return ERR AUTO while Auto Mode is enabled.
+
+          ## GPS Tracker
+
+          - UART NMEA RMC/GGA support.
+          - NEO-6M, NEO-M8N, NEO-M10N and compatible receivers.
+          - STATIC, GPS and AUTO position modes.
+          - RF / APRS-IS / BOTH tracker outputs.
+          - Fixed interval and SmartBeaconing with corner pegging.
+          - OLED GPS page, Web live status and RF Remote tracker commands.
+
+          ## Build
+
+          - ESP32 Dev Module / WROOM-32 classic.
+          - 4 MB flash.
+          - Arduino-ESP32 Core 3.3.11.
+          - Application: 1,145,655 bytes (87%).
+          - Global RAM: 77,184 bytes (23%).
+          - Source/logic validation: 131/131 PASS.
+
+          The attached ZIP contains bootloader.bin, partitions.bin, boot_app0.bin, firmware.bin, FLASH_OFFSETS.txt, SHA256SUMS.txt and README.md.
+          EOF
+
+      - name: Move REV1T tag to finalized build
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -f REV1T 3fba47151ce3cf2c29068579d971678a52c527bb
+          git push origin refs/tags/REV1T --force
+
+      - name: Refresh GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view REV1T >/dev/null 2>&1; then
+            gh release edit REV1T --title 'NUSA APRS ESP32 REV1T — GPS Tracker + Auto Mode' --notes-file release/RELEASE_NOTES.md
+          else
+            gh release create REV1T --title 'NUSA APRS ESP32 REV1T — GPS Tracker + Auto Mode' --notes-file release/RELEASE_NOTES.md
+          fi
+          gh release upload REV1T release/NUSA_APRS_ESP32_REV1T_FLASH.zip --clobber
+          gh release upload REV1T release/REV1T_RELEASE_SHA256.txt --clobber
