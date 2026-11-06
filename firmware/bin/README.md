@@ -16,5 +16,3 @@ The GPS tracker is disabled by default. Default GPS UART is RX GPIO16 / TX GPIO1
 Auto Mode Switch defaults ON: APRS-IS online = iGate ON/Digi OFF; Internet/APRS-IS unavailable = iGate OFF/Digi ON; reconnect returns automatically to iGate.
 
 Always check `SHA256SUMS.txt` after download.
-
-[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

@@ -191,5 +191,3 @@ For **GPS STALE**:
 Web UI changes are stored in NVS and applied after restart.
 
 REV1S → REV1T upgrade does not automatically factory-reset NVS. Existing REV1S keys are preserved and new tracker keys use safe defaults.
-
-[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

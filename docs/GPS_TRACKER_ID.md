@@ -130,5 +130,3 @@ Engine AFSK/AX.25 REV1S disalin byte-identik ke folder source REV1T.
 ## Interaksi dengan Auto Mode Switch
 
 Auto Mode Switch iGate/Digi tidak mengubah scheduler tracker. Tracker tetap mengikuti `Tracker Output` yang dipilih. Jika output mencakup APRS-IS saat koneksi putus, bagian APRS-IS dilewati sampai sesi APRS-IS kembali; output RF tetap dapat berjalan melalui queue/CSMA bila dipilih.
-
-[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

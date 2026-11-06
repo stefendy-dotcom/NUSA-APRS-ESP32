@@ -205,5 +205,3 @@ Jika **GPS STALE**:
 Perubahan Web UI disimpan ke NVS dan diterapkan setelah restart.
 
 Upgrade REV1S → REV1T tidak melakukan factory reset otomatis. Key REV1S lama dipertahankan; key tracker baru memakai default aman.
-
-[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

@@ -120,5 +120,3 @@ Validated build:
 - global RAM: **77,184 bytes (23%)**
 
 REV1T retains the REV1S AFSK/AX.25/decoder files byte-for-byte.
-
-[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

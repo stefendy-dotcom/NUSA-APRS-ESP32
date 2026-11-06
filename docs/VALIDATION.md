@@ -110,5 +110,3 @@ Authoritative checksums of that CI-generated package:
 - `firmware.bin`: `968c2bf25b97e54d0423509921eb88ebe411233d5033479656e36fcbd5ec95ed`
 
 The CI application binary hash differs from the independently compiled server reference because Arduino/ESP32 builds are not treated as reproducible-byte builds here. The published release uses the **GitHub Actions-generated** BIN package and its accompanying `SHA256SUMS.txt`.
-
-[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

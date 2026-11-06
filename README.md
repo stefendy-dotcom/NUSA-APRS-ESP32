@@ -124,5 +124,3 @@ Verified local build:
 The AFSK/AX.25/CRC/FIFO/HDLC files in REV1T are byte-identical to REV1S. REV1T adds no new application FreeRTOS task, mutex or semaphore; the existing low-level AFSK implementation is retained unchanged.
 
 > RF Remote Admin uses exact callsign+SSID whitelisting, not cryptographic authentication. APRS source callsigns can be spoofed.
-
-[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

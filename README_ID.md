@@ -120,5 +120,3 @@ Build tervalidasi:
 - global RAM: **77.184 byte (23%)**
 
 File AFSK/AX.25 dan engine decoder REV1S dipertahankan byte-identik pada REV1T.
-
-[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

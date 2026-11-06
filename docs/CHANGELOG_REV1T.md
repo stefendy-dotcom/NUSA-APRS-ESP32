@@ -53,5 +53,3 @@ AFSK.cpp/h, AX25.cpp/h, CRC-CCIT.cpp/h, FIFO.h and HDLC.h are byte-identical to 
 - No GPS fix waiting loop.
 - GPS processing is bounded to 96 serial bytes per main-loop iteration.
 - Tracker RF always uses the existing TX queue and CSMA.
-
-[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

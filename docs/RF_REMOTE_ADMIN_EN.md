@@ -162,5 +162,3 @@ Administrator identities, station callsign, Wi-Fi credentials, and critical GPIO
 ## Security
 
 Exact callsign+SSID whitelisting is an operational control, **not cryptographic authentication**. APRS source callsigns can be spoofed.
-
-[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

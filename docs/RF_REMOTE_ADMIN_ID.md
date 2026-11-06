@@ -162,5 +162,3 @@ Admin callsign, callsign perangkat, Wi-Fi credential dan GPIO kritis tidak dapat
 ## Security
 
 Whitelist callsign+SSID adalah kontrol operasional, **bukan autentikasi kriptografi**. Source callsign APRS dapat dipalsukan oleh pemancar lain.
-
-[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]
