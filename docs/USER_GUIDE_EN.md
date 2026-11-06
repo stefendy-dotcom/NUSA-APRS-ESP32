@@ -6,6 +6,18 @@ Feed ESP32 VIN from a stable 5 V source. After boot, join **NUSA-APRS-IGATE** an
 
 REV1T adds a **GPS Tracker** tab. The tracker defaults to OFF, so the unit continues to work like REV1S when no GPS is installed.
 
+## Auto Mode Switch
+
+REV1T default: **ON**.
+
+- APRS-IS connected: effective mode is **IGATE**, Digipeater automatically OFF.
+- Wi-Fi/Internet/APRS-IS unavailable or the APRS-IS session fails: effective mode is **DIGI**, iGate automatically OFF.
+- When APRS-IS reconnects: the device automatically returns to **IGATE** and Digi turns OFF again.
+
+Detection is end-to-end using the APRS-IS session state, not merely Wi-Fi association. A Wi-Fi link that remains associated but has no usable Internet path is therefore treated as offline for iGate operation.
+
+The manual iGate/Digi checkboxes remain stored as fallback settings and are used when Auto Mode Switch is disabled. While Auto Mode is enabled, RF commands `DIGI` and `IGATE` return `ERR AUTO`; use `AMODE OFF` first for manual control.
+
 ## Station and beacon
 
 Configure a legal callsign/SSID, site latitude/longitude, APRS symbol, comment, site beacon interval and RF path.
@@ -179,3 +191,5 @@ For **GPS STALE**:
 Web UI changes are stored in NVS and applied after restart.
 
 REV1S → REV1T upgrade does not automatically factory-reset NVS. Existing REV1S keys are preserved and new tracker keys use safe defaults.
+
+[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

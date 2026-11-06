@@ -30,7 +30,7 @@ Validated on server `stefendy` with:
 Final result:
 
 - compile exit code: **0**
-- application flash: **1,139,979 bytes (86% of 1,310,720)**
+- application flash: **1,145,655 bytes (87% of 1,310,720)**
 - global RAM: **77,184 bytes (23% of 327,680)**
 - free for local variables in build report: **250,496 bytes**
 
@@ -39,18 +39,21 @@ Final result:
 - `bootloader.bin`: `427f96e10c620c4f062dab15da54fc45494d897e8397ae6f3aecc98c42d7e379`
 - `partitions.bin`: `148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1`
 - `boot_app0.bin`: `f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0`
-- `firmware.bin`: `5a192b76089979aa97ac05639475cd0edbc910a366f4373e8fe5712fde9e8ba4`
+- `firmware.bin`: `6317d90f2a1923cb117504ebefa3ad1984c176e112d3aaba7ea39879e063f930`
 
 The GitHub Actions build may regenerate the application image from the same source; use the `SHA256SUMS.txt` beside the downloaded binaries as the authoritative checksum for that build.
 
 ## Automated source/logic validation
 
-A deterministic validation run completed **63/63 PASS**.
+A deterministic validation run completed **131/131 PASS**.
 
 Checks included:
 
 - frozen REV1S engine hashes;
 - tracker defaults OFF;
+- Auto Mode Switch defaults ON and uses APRS-IS end-to-end connectivity;
+- automatic effective mode is mutually exclusive: online = iGate only, offline = Digi only;
+- APRS-IS reconnect attempts remain enabled while Auto Mode is active;
 - GPS service limited to 96 bytes per main loop iteration;
 - no blocking `while (!gpsFix)`;
 - RMC and GGA parser presence;
@@ -61,7 +64,7 @@ Checks included:
 - Fixed and SmartBeacon modes;
 - retry throttling when an output is unavailable;
 - manual tracker beacon route;
-- all seven new RF Remote Admin tracker operations;
+- all seven new RF Remote Admin tracker operations plus `AMODE ON/OFF`;
 - read/write presence of all tracker NVS keys;
 - no new FreeRTOS synchronization/task constructs in REV1T application/GPS code;
 - known NMEA checksum/coordinate/speed conversion references;
@@ -81,7 +84,10 @@ Checks included:
 | SmartBeacon stationary | Formula check PASS | Required in motion test |
 | SmartBeacon moving | Formula check PASS | Required in motion test |
 | Corner pegging | Formula/threshold check PASS | Required in driving test |
-| Digi + iGate + Tracker simultaneously | Frozen engine + compile PASS | Required under RF load |
+| Digi + iGate + Tracker simultaneously with Auto Mode OFF | Frozen engine + compile PASS | Required under RF load |
+| Auto Mode: APRS-IS online → iGate ON / Digi OFF | Effective-mode logic PASS | Required with live network |
+| Auto Mode: APRS-IS offline → iGate OFF / Digi ON | Effective-mode logic PASS | Required with live network |
+| Auto Mode: connection recovery returns to iGate | Reconnect/state logic PASS | Required with live network |
 | Heavy APRS RF traffic | RX engine frozen byte-identical | Required RF stress test |
 | GPS unplug while running | stale/disconnect logic PASS | Required hardware test |
 | GPS returns | restore/fix transition logic PASS | Required hardware test |
@@ -104,3 +110,5 @@ Authoritative checksums of that CI-generated package:
 - `firmware.bin`: `968c2bf25b97e54d0423509921eb88ebe411233d5033479656e36fcbd5ec95ed`
 
 The CI application binary hash differs from the independently compiled server reference because Arduino/ESP32 builds are not treated as reproducible-byte builds here. The published release uses the **GitHub Actions-generated** BIN package and its accompanying `SHA256SUMS.txt`.
+
+[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

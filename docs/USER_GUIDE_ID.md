@@ -6,6 +6,18 @@ Gunakan 5 V stabil ke VIN ESP32. Setelah boot, sambungkan ke AP **NUSA-APRS-IGAT
 
 REV1T mempunyai tab baru **GPS Tracker**. Tracker default OFF sehingga perangkat tetap bekerja seperti REV1S bila GPS belum dipasang.
 
+## Auto Mode Switch
+
+Default REV1T: **ON**.
+
+- APRS-IS tersambung: mode efektif **IGATE**, Digipeater otomatis OFF.
+- Wi-Fi/Internet/APRS-IS putus atau sesi APRS-IS gagal: mode efektif **DIGI**, iGate otomatis OFF.
+- Saat APRS-IS tersambung kembali: perangkat otomatis kembali ke **IGATE** dan Digi kembali OFF.
+
+Deteksi dibuat end-to-end memakai status sesi APRS-IS, bukan sekadar status Wi-Fi. Jadi Wi-Fi yang masih tersambung ke access point tetapi tidak mempunyai akses Internet tetap dianggap offline untuk fungsi iGate.
+
+Checkbox manual iGate/Digi tetap disimpan sebagai konfigurasi fallback dan dipakai bila Auto Mode Switch dimatikan. Saat Auto Mode aktif, command RF `DIGI` atau `IGATE` ditolak dengan `ERR AUTO`; gunakan `AMODE OFF` terlebih dahulu bila ingin kontrol manual.
+
 ## Station & Beacon
 
 Isi callsign/SSID yang sah, latitude/longitude site, symbol, comment, interval beacon dan path RF.
@@ -193,3 +205,5 @@ Jika **GPS STALE**:
 Perubahan Web UI disimpan ke NVS dan diterapkan setelah restart.
 
 Upgrade REV1S → REV1T tidak melakukan factory reset otomatis. Key REV1S lama dipertahankan; key tracker baru memakai default aman.
+
+[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

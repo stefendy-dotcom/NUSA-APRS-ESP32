@@ -61,6 +61,7 @@ Bila aplikasi/radio pengirim menggunakan APRS message number, perangkat juga men
 | `ISPATH WIDE2-1` | Mengatur path RF yang digunakan saat perangkat meneruskan packet **APRS-IS → RF**. |
 | `ISPATH DIRECT` | Mengatur packet **APRS-IS → RF** dikirim langsung tanpa digipeater path. |
 | `COMMENT teks` | Mengubah comment APRS perangkat. Maksimum **100 karakter**. Contoh: `COMMENT NUSA APRS IGATE`. |
+| `AMODE ON` / `AMODE OFF` | Mengaktifkan/mematikan **Auto Mode Switch**. ON: APRS-IS online → iGate, offline → Digipeater. Saat ON, command manual `DIGI`/`IGATE` mengembalikan `ERR AUTO`. |
 | `TRK ON` / `TRK OFF` | Mengaktifkan atau mematikan **GPS Tracker REV1T** tanpa mengubah status Digi/iGate/IS→RF. |
 | `GPS` | Meminta status GPS singkat. Contoh balasan: `FIX=1 SAT=10 SPD=45 CRS=128`; tanpa fix: `FIX=0 SAT=3`. |
 | `TMODE FIX` | Menggunakan mode tracker **Fixed Interval**. |
@@ -95,13 +96,14 @@ SAVE
 Contoh bentuk balasan:
 
 ```text
-UP=12H RX=245 D=1 I=1 IS=1 H=143K
+UP=12H RX=245 D=0 I=1 A=1 IS=1 H=143K
 ```
 
 - `UP` = uptime perangkat.
 - `RX` = jumlah frame RF yang sudah diterima.
 - `D=1` = digipeater ON, `D=0` = OFF.
-- `I=1` = iGate RF→IS ON, `I=0` = OFF.
+- `I=1` = iGate RF→IS efektif ON, `I=0` = OFF.
+- `A=1` = Auto Mode Switch ON, `A=0` = OFF/manual.
 - `IS=1` = sedang terhubung ke APRS-IS, `IS=0` = tidak terhubung.
 - `H` = free heap ESP32 dalam KB.
 
@@ -110,11 +112,12 @@ UP=12H RX=245 D=1 I=1 IS=1 H=143K
 Contoh:
 
 ```text
-D=1 I=1 R=1 Q=55 G=0 T=90 B=600 *
+D=0 I=1 A=1 R=1 Q=55 G=0 T=90 B=600 *
 ```
 
 - `D` = DIGI.
-- `I` = IGATE RF→IS.
+- `I` = status efektif IGATE RF→IS.
+- `A` = Auto Mode Switch (`1` ON, `0` OFF/manual).
 - `R` = IS→RF.
 - `Q` = RX Squelch ADC.
 - `G` = RX Decoder Gain.
@@ -124,9 +127,10 @@ D=1 I=1 R=1 Q=55 G=0 T=90 B=600 *
 
 ## Contoh penggunaan
 
-Mematikan digipeater sementara:
+Mematikan digipeater secara manual (Auto Mode harus dimatikan lebih dahulu):
 
 ```text
+AMODE OFF
 DIGI OFF
 ```
 
@@ -158,3 +162,5 @@ Admin callsign, callsign perangkat, Wi-Fi credential dan GPIO kritis tidak dapat
 ## Security
 
 Whitelist callsign+SSID adalah kontrol operasional, **bukan autentikasi kriptografi**. Source callsign APRS dapat dipalsukan oleh pemancar lain.
+
+[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

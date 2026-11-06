@@ -6,7 +6,7 @@
 
 Firmware untuk **ESP32 WROOM/DevKit klasik** yang menghubungkan radio VHF analog dengan APRS RF/APRS-IS dan sekarang juga dapat berfungsi sebagai **GPS APRS Tracker**.
 
-REV1T mempertahankan engine RX/iGate/digipeater REV1S tanpa perubahan dan menambahkan tracker GPS UART NMEA secara modular dan non-blocking. Tracker default **OFF**, sehingga upgrade dari REV1S tetap dapat digunakan walaupun GPS belum dipasang.
+REV1T mempertahankan engine RX/iGate/digipeater REV1S tanpa perubahan dan menambahkan tracker GPS UART NMEA secara modular dan non-blocking. Tracker default **OFF**, sehingga upgrade dari REV1S tetap dapat digunakan walaupun GPS belum dipasang. **Auto Mode Switch default ON**: APRS-IS online membuat perangkat bekerja sebagai iGate (Digi OFF); bila Internet/APRS-IS putus perangkat otomatis menjadi Digipeater (iGate OFF), lalu kembali ke iGate saat koneksi pulih.
 
 ## Fungsi utama
 
@@ -87,6 +87,7 @@ Corner pegging menggunakan perubahan heading dengan threshold dinamis. Semua bea
 
 Command tambahan REV1T:
 
+- `AMODE ON` / `AMODE OFF`
 - `TRK ON` / `TRK OFF`
 - `GPS`
 - `TMODE FIX`
@@ -115,7 +116,9 @@ Target: **ESP32 Dev Module / WROOM-32 klasik / flash 4 MB / Arduino-ESP32 Core 3
 
 Build tervalidasi:
 
-- flash aplikasi: **1.139.979 byte (86%)**
+- flash aplikasi: **1.145.655 byte (87%)**
 - global RAM: **77.184 byte (23%)**
 
 File AFSK/AX.25 dan engine decoder REV1S dipertahankan byte-identik pada REV1T.
+
+[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

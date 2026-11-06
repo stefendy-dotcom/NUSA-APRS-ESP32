@@ -2,6 +2,9 @@
 
 ## Added
 
+- Auto Mode Switch (default ON): APRS-IS connected → iGate ON/Digi OFF; Internet/APRS-IS unavailable → iGate OFF/Digi ON; automatic recovery back to iGate.
+- End-to-end connectivity decision based on the APRS-IS session so Wi-Fi-without-Internet falls back to Digipeater.
+- RF Remote command `AMODE ON/OFF`; manual `DIGI`/`IGATE` is protected with `ERR AUTO` while automatic mode is active.
 - UART NMEA GPS tracker.
 - NEO-6M / NEO-M8N / NEO-M10N compatible RMC/GGA parsing.
 - Configurable GPS RX/TX GPIO and baud 9600/38400/115200.
@@ -50,3 +53,5 @@ AFSK.cpp/h, AX25.cpp/h, CRC-CCIT.cpp/h, FIFO.h and HDLC.h are byte-identical to 
 - No GPS fix waiting loop.
 - GPS processing is bounded to 96 serial bytes per main-loop iteration.
 - Tracker RF always uses the existing TX queue and CSMA.
+
+[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

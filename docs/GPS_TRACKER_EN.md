@@ -125,3 +125,10 @@ Use `SAVE` after remote configuration changes that should survive reboot.
 The tracker defaults to OFF. Existing REV1S NVS keys are preserved and there is no automatic factory reset.
 
 The REV1S AFSK/AX.25 engine files are copied byte-for-byte into the REV1T source folder.
+
+
+## Auto Mode interaction
+
+The iGate/Digi Auto Mode Switch does not change the tracker scheduler. The tracker continues to follow the selected `Tracker Output`. If the output includes APRS-IS while connectivity is down, the APRS-IS part is skipped until the session returns; RF output can continue through the normal queue/CSMA when selected.
+
+[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

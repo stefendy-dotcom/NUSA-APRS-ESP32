@@ -61,6 +61,7 @@ If the transmitting APRS application or radio includes a standard APRS message n
 | `ISPATH WIDE2-1` | Sets the RF path used when forwarding packets from **APRS-IS → RF**. |
 | `ISPATH DIRECT` | Sends **APRS-IS → RF** packets directly without a digipeater path. |
 | `COMMENT text` | Changes the device APRS comment. Maximum length: **100 characters**. Example: `COMMENT NUSA APRS IGATE`. |
+| `AMODE ON` / `AMODE OFF` | Enables/disables **Auto Mode Switch**. ON: APRS-IS online → iGate, offline → Digipeater. While ON, manual `DIGI`/`IGATE` commands return `ERR AUTO`. |
 | `TRK ON` / `TRK OFF` | Enables or disables the **REV1T GPS Tracker** independently from Digi/iGate/IS→RF. |
 | `GPS` | Requests compact GPS status. Example: `FIX=1 SAT=10 SPD=45 CRS=128`; without fix: `FIX=0 SAT=3`. |
 | `TMODE FIX` | Selects **Fixed Interval** tracker mode. |
@@ -95,13 +96,14 @@ SAVE
 Example:
 
 ```text
-UP=12H RX=245 D=1 I=1 IS=1 H=143K
+UP=12H RX=245 D=0 I=1 A=1 IS=1 H=143K
 ```
 
 - `UP` = device uptime.
 - `RX` = number of RF frames received.
 - `D=1` = digipeater ON, `D=0` = OFF.
-- `I=1` = RF→IS iGate ON, `I=0` = OFF.
+- `I=1` = effective RF→IS iGate ON, `I=0` = OFF.
+- `A=1` = Auto Mode Switch ON, `A=0` = OFF/manual.
 - `IS=1` = connected to APRS-IS, `IS=0` = disconnected.
 - `H` = ESP32 free heap in KB.
 
@@ -110,11 +112,12 @@ UP=12H RX=245 D=1 I=1 IS=1 H=143K
 Example:
 
 ```text
-D=1 I=1 R=1 Q=55 G=0 T=90 B=600 *
+D=0 I=1 A=1 R=1 Q=55 G=0 T=90 B=600 *
 ```
 
 - `D` = DIGI.
-- `I` = RF→IS IGATE.
+- `I` = effective RF→IS IGATE state.
+- `A` = Auto Mode Switch (`1` ON, `0` OFF/manual).
 - `R` = IS→RF.
 - `Q` = RX Squelch ADC.
 - `G` = RX Decoder Gain.
@@ -124,9 +127,10 @@ D=1 I=1 R=1 Q=55 G=0 T=90 B=600 *
 
 ## Usage examples
 
-Temporarily disable the digipeater:
+Temporarily disable the digipeater manually (disable Auto Mode first):
 
 ```text
+AMODE OFF
 DIGI OFF
 ```
 
@@ -158,3 +162,5 @@ Administrator identities, station callsign, Wi-Fi credentials, and critical GPIO
 ## Security
 
 Exact callsign+SSID whitelisting is an operational control, **not cryptographic authentication**. APRS source callsigns can be spoofed.
+
+[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

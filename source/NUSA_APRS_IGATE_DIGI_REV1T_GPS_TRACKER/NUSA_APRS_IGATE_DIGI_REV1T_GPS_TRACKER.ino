@@ -69,6 +69,11 @@ struct AppConfig {
   int32_t isPasscode = 0; // 0 = calculate automatically from callsign
   String isFilter = ""; // APRS-IS server-side filter; blank = server default
   bool igateEnabled = true;
+  // REV1T Auto Mode Switch:
+  // APRS-IS connected => iGate active, Digi inactive.
+  // APRS-IS unavailable/disconnected => iGate inactive, Digi active.
+  // Manual igate/digi values remain stored as fallback when Auto Mode is OFF.
+  bool autoModeSwitchEnabled = true;
 
   // Local APRS-IS -> RF message filter.  This is processed by the ESP32,
   // NOT sent to APRS-IS.  i/30/0 = message addressee heard in the last
@@ -176,6 +181,7 @@ String lastTrackerReason = "-";
 bool lastGpsConnectedState = false;
 bool lastGpsFixState = false;
 bool gpsHadFixPreviously = false;
+int8_t autoModeLast = -1; // -1 unknown, 0 DIGI, 1 IGATE
 bool rfAdminDirty = false;
 bool rfAdminRebootPending = false;
 uint32_t rfAdminRebootRequestedMs = 0;
@@ -184,6 +190,7 @@ uint32_t rfAdminRebootRequestedMs = 0;
 // snapshot; SAVE updates NVS and then refreshes the snapshot.
 struct RfAdminSavedConfig {
   bool igateEnabled = true;
+  bool autoModeSwitchEnabled = true;
   bool isToRfEnabled = true;
   bool digiEnabled = false;
   bool rfBeaconEnabled = false;
@@ -276,6 +283,10 @@ static void applyModemConfig();
 static void initOled();
 static bool processRfAdminMessage(const AX25Msg &m);
 static void serviceRfAdmin();
+static bool autoNetworkAvailable();
+static bool effectiveIgateEnabled();
+static bool effectiveDigiEnabled();
+static void serviceAutoModeSwitch();
 static bool gpsPinsSafe();
 static void initGps();
 static bool sendTrackerBeacon(bool manual, const char *reason);
@@ -287,6 +298,38 @@ static void addLog(const String &s) {
   logBuf[logHead] = line;
   logHead = (uint8_t)((logHead + 1) % LOG_LINES);
   if (logUsed < LOG_LINES) ++logUsed;
+}
+
+static bool autoNetworkAvailable() {
+  // End-to-end criterion: Wi-Fi is associated AND the APRS-IS TCP session is
+  // authenticated/connected. This also catches "Wi-Fi connected but Internet
+  // unavailable" and APRS-IS route failures, where acting as a digipeater is
+  // more useful than pretending the iGate is online.
+  return WiFi.status() == WL_CONNECTED && aprsClient.connected();
+}
+
+static bool effectiveIgateEnabled() {
+  return cfg.autoModeSwitchEnabled ? autoNetworkAvailable() : cfg.igateEnabled;
+}
+
+static bool effectiveDigiEnabled() {
+  return cfg.autoModeSwitchEnabled ? !autoNetworkAvailable() : cfg.digiEnabled;
+}
+
+static void serviceAutoModeSwitch() {
+  if (!cfg.autoModeSwitchEnabled) {
+    if (autoModeLast != -1) {
+      addLog("AUTO MODE OFF -> manual IGATE=" + String(cfg.igateEnabled ? "ON" : "OFF") +
+             " DIGI=" + String(cfg.digiEnabled ? "ON" : "OFF"));
+      autoModeLast = -1;
+    }
+    return;
+  }
+  int8_t mode = autoNetworkAvailable() ? 1 : 0;
+  if (mode == autoModeLast) return;
+  autoModeLast = mode;
+  if (mode == 1) addLog("AUTO MODE -> IGATE (APRS-IS connected), DIGI OFF");
+  else addLog("AUTO MODE -> DIGI (Internet/APRS-IS unavailable), IGATE OFF");
 }
 
 static String htmlEscape(String s) {
@@ -424,6 +467,7 @@ static String remoteDirtySuffix() { return rfAdminDirty ? " *" : ""; }
 
 static void captureRfAdminSavedConfig() {
   rfAdminSaved.igateEnabled = cfg.igateEnabled;
+  rfAdminSaved.autoModeSwitchEnabled = cfg.autoModeSwitchEnabled;
   rfAdminSaved.isToRfEnabled = cfg.isToRfEnabled;
   rfAdminSaved.digiEnabled = cfg.digiEnabled;
   rfAdminSaved.rfBeaconEnabled = cfg.rfBeaconEnabled;
@@ -451,6 +495,7 @@ static void captureRfAdminSavedConfig() {
 static void restoreRfAdminSavedConfig() {
   bool oldOled = cfg.oledEnabled;
   cfg.igateEnabled = rfAdminSaved.igateEnabled;
+  cfg.autoModeSwitchEnabled = rfAdminSaved.autoModeSwitchEnabled;
   cfg.isToRfEnabled = rfAdminSaved.isToRfEnabled;
   cfg.digiEnabled = rfAdminSaved.digiEnabled;
   cfg.rfBeaconEnabled = rfAdminSaved.rfBeaconEnabled;
@@ -481,6 +526,7 @@ static void restoreRfAdminSavedConfig() {
 static void persistRfAdminOperationalConfig() {
   prefs.begin("nusaaprs", false);
   prefs.putBool("igate", cfg.igateEnabled);
+  prefs.putBool("automode", cfg.autoModeSwitchEnabled);
   prefs.putBool("is2rf", cfg.isToRfEnabled);
   prefs.putString("isrfflt", cfg.localIsRfFilter);
   prefs.putString("isrfpath", cfg.isToRfPath);
@@ -880,7 +926,7 @@ static String msgToTnc2(const AX25Msg &m) {
 }
 
 static void gateToAprsIs(const AX25Msg &m) {
-  if (!cfg.igateEnabled || !aprsClient.connected() || hasForbiddenGatePath(m)) return;
+  if (!effectiveIgateEnabled() || !aprsClient.connected() || hasForbiddenGatePath(m)) return;
   if (sameCall(m.src, ax25_makeCall(cfg.call.c_str(), cfg.ssid))) return;
 
   String rf = msgToTnc2(m);
@@ -893,7 +939,7 @@ static void gateToAprsIs(const AX25Msg &m) {
 }
 
 static void maybeDigipeat(const AX25Msg &m) {
-  if (!cfg.digiEnabled || m.rpt_count == 0) return;
+  if (!effectiveDigiEnabled() || m.rpt_count == 0) return;
 
   AX25Call own = ax25_makeCall(cfg.call.c_str(), cfg.ssid);
   if (sameCall(m.src, own)) return;
@@ -1023,8 +1069,8 @@ static void drawOledHome() {
   String call = stationCall();
   oled.centered(14, call, call.length() <= 8 ? 2 : 1);
   bool isok = aprsClient.connected();
-  oled.text(1, 34, "IS:" + String(isok ? "OK" : "--") + " IG:" + String(cfg.igateEnabled ? "ON" : "OFF"));
-  oled.text(1, 43, "DGI:" + String(cfg.digiEnabled ? "ON" : "OFF") + " RF:" + String(AFSK_channelBusy() ? "BUSY" : "CLEAR"));
+  oled.text(1, 34, "IS:" + String(isok ? "OK" : "--") + " IG:" + String(effectiveIgateEnabled() ? "ON" : "OFF"));
+  oled.text(1, 43, "DGI:" + String(effectiveDigiEnabled() ? "ON" : "OFF") + " RF:" + String(AFSK_channelBusy() ? "BUSY" : "CLEAR"));
   oled.text(1, 53, "RX:" + String(rfRxCount) + " TX:" + String(digiTxCount));
 }
 
@@ -1377,8 +1423,9 @@ static bool queueRfAdminReply(const String &targetCall, String reply) {
 }
 
 static String rfAdminGetText() {
-  String s = "D=" + String(cfg.digiEnabled ? 1 : 0) +
-             " I=" + String(cfg.igateEnabled ? 1 : 0) +
+  String s = "D=" + String(effectiveDigiEnabled() ? 1 : 0) +
+             " I=" + String(effectiveIgateEnabled() ? 1 : 0) +
+             " A=" + String(cfg.autoModeSwitchEnabled ? 1 : 0) +
              " R=" + String(cfg.isToRfEnabled ? 1 : 0) +
              " Q=" + String(cfg.rxSquelch) +
              " G=" + String(cfg.rxDecoderGain) +
@@ -1392,8 +1439,9 @@ static String rfAdminStatText() {
   uint32_t upMin = millis() / 60000UL;
   String up = upMin >= 1440UL ? String(upMin / 1440UL) + "D" : String(upMin / 60UL) + "H";
   String s = "UP=" + up + " RX=" + String(rfRxCount) +
-             " D=" + String(cfg.digiEnabled ? 1 : 0) +
-             " I=" + String(cfg.igateEnabled ? 1 : 0) +
+             " D=" + String(effectiveDigiEnabled() ? 1 : 0) +
+             " I=" + String(effectiveIgateEnabled() ? 1 : 0) +
+             " A=" + String(cfg.autoModeSwitchEnabled ? 1 : 0) +
              " IS=" + String(aprsClient.connected() ? 1 : 0) +
              " H=" + String(ESP.getFreeHeap() / 1024UL) + "K";
   return s;
@@ -1439,11 +1487,16 @@ static bool processRfAdminMessage(const AX25Msg &m) {
   if (op == "STAT") reply = rfAdminStatText();
   else if (op == "GET") reply = rfAdminGetText();
   else if (op == "DIGI") {
-    if (!setRemoteOnOff(uarg, cfg.digiEnabled)) reply = "ERR VALUE";
+    if (cfg.autoModeSwitchEnabled) reply = "ERR AUTO";
+    else if (!setRemoteOnOff(uarg, cfg.digiEnabled)) reply = "ERR VALUE";
     else reply = "OK DIGI " + String(cfg.digiEnabled ? "ON" : "OFF") + remoteDirtySuffix();
   } else if (op == "IGATE") {
-    if (!setRemoteOnOff(uarg, cfg.igateEnabled)) reply = "ERR VALUE";
+    if (cfg.autoModeSwitchEnabled) reply = "ERR AUTO";
+    else if (!setRemoteOnOff(uarg, cfg.igateEnabled)) reply = "ERR VALUE";
     else reply = "OK IGATE " + String(cfg.igateEnabled ? "ON" : "OFF") + remoteDirtySuffix();
+  } else if (op == "AMODE" || op == "AUTO") {
+    if (!setRemoteOnOff(uarg, cfg.autoModeSwitchEnabled)) reply = "ERR VALUE";
+    else { autoModeLast = -1; serviceAutoModeSwitch(); reply = "OK AMODE " + String(cfg.autoModeSwitchEnabled ? "ON" : "OFF") + remoteDirtySuffix(); }
   } else if (op == "ISRF") {
     if (!setRemoteOnOff(uarg, cfg.isToRfEnabled)) reply = "ERR VALUE";
     else reply = "OK ISRF " + String(cfg.isToRfEnabled ? "ON" : "OFF") + remoteDirtySuffix();
@@ -1982,6 +2035,7 @@ static void loadConfig() {
   cfg.isPasscode = prefs.getInt("ispass", cfg.isPasscode);
   cfg.isFilter = prefs.getString("filter", cfg.isFilter);
   cfg.igateEnabled = prefs.getBool("igate", cfg.igateEnabled);
+  cfg.autoModeSwitchEnabled = prefs.getBool("automode", cfg.autoModeSwitchEnabled);
   cfg.isToRfEnabled = prefs.getBool("is2rf", cfg.isToRfEnabled);
   cfg.localIsRfFilter = prefs.getString("isrfflt", cfg.localIsRfFilter);
   cfg.isToRfPath = prefs.getString("isrfpath", cfg.isToRfPath);
@@ -2132,6 +2186,7 @@ static void saveConfigFromWeb() {
   cfg.isPasscode = web.arg("ispass").toInt();
   cfg.isFilter = singleLine(web.arg("filter")); cfg.isFilter.trim();
   cfg.igateEnabled = web.hasArg("igate");
+  cfg.autoModeSwitchEnabled = web.hasArg("automode");
 
   cfg.isToRfEnabled = web.hasArg("is2rf");
   cfg.localIsRfFilter = singleLine(web.arg("localfilter")); cfg.localIsRfFilter.trim(); cfg.localIsRfFilter.toLowerCase();
@@ -2232,7 +2287,7 @@ static void saveConfigFromWeb() {
   prefs.putString("wssid", cfg.wifiSsid); prefs.putString("wpass", cfg.wifiPass);
   prefs.putString("apssid", cfg.apSsid); prefs.putString("appass", cfg.apPass);
   prefs.putString("server", cfg.isServer); prefs.putUShort("port", cfg.isPort); prefs.putInt("ispass", cfg.isPasscode);
-  prefs.putString("filter", cfg.isFilter); prefs.putBool("igate", cfg.igateEnabled);
+  prefs.putString("filter", cfg.isFilter); prefs.putBool("igate", cfg.igateEnabled); prefs.putBool("automode", cfg.autoModeSwitchEnabled);
   prefs.putBool("is2rf", cfg.isToRfEnabled); prefs.putString("isrfflt", cfg.localIsRfFilter); prefs.putString("isrfpath", cfg.isToRfPath);
   prefs.putBool("digi", cfg.digiEnabled); prefs.putString("alias", cfg.digiAliases);
   prefs.putUShort("ddelay", cfg.digiDelayMs); prefs.putUShort("dupsec", cfg.duplicateSec);
@@ -2293,7 +2348,8 @@ static void serviceWifi() {
 }
 
 static void serviceAprsIs() {
-  bool needIs = cfg.igateEnabled || cfg.isToRfEnabled || cfg.isBeaconEnabled;
+  bool trackerNeedsIs = cfg.trackerEnabled && (cfg.trackerOutput == TRACK_OUT_IS || cfg.trackerOutput == TRACK_OUT_BOTH);
+  bool needIs = cfg.autoModeSwitchEnabled || cfg.igateEnabled || cfg.isToRfEnabled || cfg.isBeaconEnabled || trackerNeedsIs;
   if (!needIs || WiFi.status() != WL_CONNECTED || sanitizeBaseCall(cfg.call) == "NOCALL") {
     disconnectAprsIs();
     return;
@@ -2370,6 +2426,7 @@ static void handleRoot() {
          "<div class='card'><small>RX Valid</small><strong id='rx'>0</strong></div>"
          "<div class='card'><small>RF→IS / Digi TX</small><strong id='counts'>0 / 0</strong></div>"
          "<div class='card'><small>IS→RF TX / Drop</small><strong id='is2rfcounts'>0 / 0</strong></div>"
+         "<div class='card'><small>Operating Mode</small><strong id='modeov'>-</strong></div>"
          "<div class='card'><small>GPS</small><strong id='gpsov'>NO GPS</strong></div>"
          "<div class='card'><small>Tracker RF / IS</small><strong id='trov'>0 / 0</strong></div>"
          "<div class='card'><small>Free Heap</small><strong><span id='heap'>0</span></strong><small>bytes</small></div>"
@@ -2443,7 +2500,9 @@ static void handleRoot() {
   h += F("<section id='aprs' class='panel'><fieldset><legend>APRS-IS iGate</legend><div class='row'>");
   h += "<label>Server<input name='server' value='" + htmlEscape(cfg.isServer) + "'></label><label>Port<input type='number' name='port' min='1' max='65535' value='" + String(cfg.isPort) + "'></label><label>Passcode<input type='number' name='ispass' value='" + String(cfg.isPasscode) + "'><span class='hint'>0 = hitung otomatis dari callsign.</span></label></div>";
   h += "<label>APRS-IS server filter<input name='filter' value='" + htmlEscape(cfg.isFilter) + "' placeholder='blank = server default; contoh m/100'><span class='hint'>Gunakan filter resmi APRS-IS. i/30/0 bukan server filter.</span></label>";
-  h += "<label class='ck'><input type='checkbox' name='igate'" + checked(cfg.igateEnabled) + ">Enable RF → APRS-IS iGate</label></fieldset>";
+  h += "<label class='ck'><input type='checkbox' name='automode'" + checked(cfg.autoModeSwitchEnabled) + ">Auto Mode Switch: APRS-IS online = iGate, offline = Digipeater</label>";
+  h += "<label class='ck'><input type='checkbox' name='igate'" + checked(cfg.igateEnabled) + ">Manual iGate state (dipakai bila Auto Mode OFF)</label>";
+  h += "<div class='note green'><b>Auto Mode Switch:</b> status koneksi ditentukan end-to-end dari sesi APRS-IS, bukan hanya Wi-Fi. Jika Wi-Fi tersambung tetapi Internet/APRS-IS tidak dapat dicapai, perangkat tetap masuk mode Digipeater. Saat APRS-IS tersambung kembali, Digi otomatis OFF dan iGate otomatis ON.</div></fieldset>";
 
   h += F("<fieldset><legend>APRS-IS → RF Message Gate</legend>");
   h += "<label class='ck'><input type='checkbox' name='is2rf'" + checked(cfg.isToRfEnabled) + ">Enable APRS-IS → RF messages</label>";
@@ -2451,7 +2510,7 @@ static void handleRoot() {
   h += F("<div class='note'><b>i/30/0:</b> hanya APRS message ke target yang terdengar langsung di RF dalam 30 menit terakhir dan maksimum 0 digi hop. Filter ini dijalankan lokal di ESP32. Path kosong = transmit direct.</div></fieldset>");
 
   h += F("<fieldset><legend>RF Digipeater</legend>");
-  h += "<label class='ck'><input type='checkbox' name='digi'" + checked(cfg.digiEnabled) + ">Enable digipeater</label>";
+  h += "<label class='ck'><input type='checkbox' name='digi'" + checked(cfg.digiEnabled) + ">Manual digipeater state (dipakai bila Auto Mode OFF)</label>";
   h += "<div class='row'><label>Aliases<input name='alias' value='" + htmlEscape(cfg.digiAliases) + "'><span class='hint'>Default WIDE1,WIDE2.</span></label><label>Digi delay<input name='ddelay' type='number' min='0' max='3000' value='" + String(cfg.digiDelayMs) + "'><span class='hint'>ms</span></label><label>Duplicate window<input name='dupsec' type='number' min='5' max='300' value='" + String(cfg.duplicateSec) + "'><span class='hint'>detik</span></label></div></fieldset></section>";
 
   // RADIO / AFSK ------------------------------------------------------------
@@ -2469,7 +2528,7 @@ static void handleRoot() {
   h += "<label>Admin Callsign 2<input name='rfadm2' maxlength='9' value='" + htmlEscape(cfg.rfAdmin2) + "' placeholder='opsional'><span class='hint'>Admin kedua; kosong jika tidak digunakan.</span></label>";
   h += "<label>Reply path<input name='rfadmpath' value='" + htmlEscape(cfg.rfAdminReplyPath) + "' placeholder='blank = DIRECT'><span class='hint'>Contoh WIDE2-1. DIRECT/kosong = tanpa digi.</span></label></div>";
   h += F("<div class='note green'><b>Silent reject:</b> message command dari callsign selain dua Admin di atas tidak pernah dibalas lewat RF. Admin identity, enable Remote, Wi-Fi, callsign station dan GPIO hanya dapat diubah dari Web lokal.</div>"
-         "<div class='note blue'><b>Command singkat:</b> STAT, GET, DIGI ON/OFF, IGATE ON/OFF, ISRF ON/OFF, RFBCN ON/OFF, ISBCN ON/OFF, RXSQL n, RXGAIN n, TXLVL n, BSEC n, DDELAY n, DUPSEC n, FILTER i/30/0, ALIAS ..., RFPATH ..., ISPATH ..., COMMENT ..., OLED ON/OFF, TRK ON/OFF, GPS, TMODE FIX/SMART, TSEC n, TPATH path/DIRECT, TOUT RF/IS/BOTH, TBCN, SAVE, CANCEL, REBOOT.<br><b>*</b> pada reply berarti perubahan belum SAVE. Contoh: <span class='mono'>DIGI OFF</span> lalu <span class='mono'>SAVE</span>.</div></fieldset></section>");
+         "<div class='note blue'><b>Command singkat:</b> STAT, GET, DIGI ON/OFF, IGATE ON/OFF, ISRF ON/OFF, RFBCN ON/OFF, ISBCN ON/OFF, RXSQL n, RXGAIN n, TXLVL n, BSEC n, DDELAY n, DUPSEC n, FILTER i/30/0, ALIAS ..., RFPATH ..., ISPATH ..., COMMENT ..., OLED ON/OFF, AMODE ON/OFF, TRK ON/OFF, GPS, TMODE FIX/SMART, TSEC n, TPATH path/DIRECT, TOUT RF/IS/BOTH, TBCN, SAVE, CANCEL, REBOOT.<br><b>*</b> pada reply berarti perubahan belum SAVE. Contoh: <span class='mono'>DIGI OFF</span> lalu <span class='mono'>SAVE</span>.</div></fieldset></section>");
 
   // OLED --------------------------------------------------------------------
   h += F("<section id='oled' class='panel'><fieldset><legend>OLED 128x64 I2C</legend>");
@@ -2516,7 +2575,7 @@ static void handleRoot() {
   h += F("<div class='foot'>NUSA APRS ESP32 • FINAL based on proven REV1L UV-5RH decoder</div><div id='toast' class='toast'></div></div><script>"
          "function tab(id,b){document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));let p=document.getElementById(id);if(p)p.classList.add('active');document.querySelectorAll('.tabbtn').forEach(x=>x.classList.remove('active'));if(b)b.classList.add('active');let sb=document.getElementById('savebar');if(sb)sb.style.display=(id=='station'||id=='tracker'||id=='network'||id=='aprs'||id=='radio'||id=='remote'||id=='oled')?'flex':'none';try{localStorage.setItem('nusaTab',id)}catch(e){}}"
          "function toast(t){let x=document.getElementById('toast');x.textContent=t;x.style.display='block';clearTimeout(window._tt);window._tt=setTimeout(()=>x.style.display='none',3200)}"
-         "async function stat(){try{let r=await fetch('/status.json',{cache:'no-store'});let s=await r.json();document.getElementById('stcall').textContent=s.call;let w=document.getElementById('wifi');w.textContent=s.wifi;w.className=s.wifiok?'ok':'bad';let i=document.getElementById('is');i.textContent=s.is;i.className=s.isok?'ok':'bad';let rf=document.getElementById('rf');rf.textContent=s.busy?'BUSY':'CLEAR';rf.className=s.busy?'bad':'ok';document.getElementById('rx').textContent=s.rx;document.getElementById('counts').textContent=s.gated+' / '+s.digi;document.getElementById('is2rfcounts').textContent=s.is2rftx+' / '+s.is2rfdrop;document.getElementById('ip').textContent=s.ip;document.getElementById('audio').textContent=s.audio;document.getElementById('audiopeak').textContent=s.audiopeak;document.getElementById('rxgainnow').textContent=s.rxgain;document.getElementById('adcclips').textContent=s.adcclips;document.getElementById('adcraw').textContent=s.adcmin+' / '+s.adcmax;document.getElementById('heap').textContent=s.heap;document.getElementById('topstate').textContent=(s.wifiok?'WIFI ':'')+(s.isok?'IS OK':'LOCAL');document.getElementById('topstate').className='pill '+(s.isok?'ok':'');document.getElementById('lastdec').textContent=s.lastdec==1?'A / MicroModem':(s.lastdec==2?'B-RAW':(s.lastdec==3?'B-EQ125':(s.lastdec==4?'B-EQ130':'NONE')));document.getElementById('deca').textContent=s.aok+' / '+s.abadu;document.getElementById('decb').textContent=s.bok+' / '+s.bbadu;document.getElementById('braw').textContent=s.brawok+' / '+s.brawbad;document.getElementById('bd75').textContent=s.bd75ok+' / '+s.bd75bad;document.getElementById('bd220').textContent=s.bd220ok+' / '+s.bd220bad;document.getElementById('afc').textContent=s.aflags+' / '+s.acand;document.getElementById('bfc').textContent=s.bflags+' / '+s.bcand;document.getElementById('tones').textContent=s.mark+' / '+s.space;document.getElementById('conf').textContent=s.conf+'%';document.getElementById('trans').textContent=s.trans;document.getElementById('dualdup').textContent=s.dualdup;let cs=s.capready?'READY':(s.capactive?'CAPTURING':(s.caparmed?'ARMED':'IDLE'));document.getElementById('capstat').textContent=cs;document.getElementById('capsamples').textContent=s.capsamples+' samples';document.getElementById('caplink').style.display=s.capready?'inline-block':'none';let os=document.getElementById('oledstate');if(os){os.textContent=s.oledok?'READY':'OFF/NO OLED';os.className=s.oledok?'ok':'bad';document.getElementById('oledaddr').textContent=s.oledaddr;document.getElementById('wxsrc').textContent=s.wxsrc;document.getElementById('wxage').textContent=s.wxage;}let go=document.getElementById('gpsov');if(go){go.textContent=s.gpsstate;go.className=s.gpsfix?'ok':'bad'}let tv=document.getElementById('trov');if(tv)tv.textContent=s.trrf+' / '+s.tris;let gs=document.getElementById('gpsstate');if(gs){gs.textContent=s.gpsstate;gs.className=s.gpsfix?'ok':'bad';document.getElementById('gpspins').textContent=s.gpspins;document.getElementById('gpssats').textContent=s.gpssats+' / '+s.gpshdop;document.getElementById('gpspos').textContent=s.gpsfix?(Number(s.gpslat).toFixed(6)+', '+Number(s.gpslon).toFixed(6)):'-';document.getElementById('gpsmove').textContent=s.gpsfix?(s.gpsspeed+' km/h / '+s.gpscourse+'°'):'-';document.getElementById('gpsalt').textContent=s.gpsfix?(s.gpsalt+' m'):'-';document.getElementById('gpsage').textContent=s.gpsfix?('fix age '+s.gpsage+' s'):'no fresh fix';document.getElementById('trlast').textContent=s.trreason;document.getElementById('trnext').textContent='next '+s.trnext+' s';document.getElementById('trcounts').textContent=s.trrf+' / '+s.tris+' / '+s.trdrop;document.getElementById('gpscounts').textContent=s.gpssent+' / '+s.gpsvalid+' / '+s.gpsinvalid;}}catch(e){document.getElementById('topstate').textContent='OFFLINE'}}"
+         "async function stat(){try{let r=await fetch('/status.json',{cache:'no-store'});let s=await r.json();document.getElementById('stcall').textContent=s.call;let w=document.getElementById('wifi');w.textContent=s.wifi;w.className=s.wifiok?'ok':'bad';let i=document.getElementById('is');i.textContent=s.is;i.className=s.isok?'ok':'bad';let rf=document.getElementById('rf');rf.textContent=s.busy?'BUSY':'CLEAR';rf.className=s.busy?'bad':'ok';document.getElementById('rx').textContent=s.rx;document.getElementById('counts').textContent=s.gated+' / '+s.digi;document.getElementById('is2rfcounts').textContent=s.is2rftx+' / '+s.is2rfdrop;document.getElementById('ip').textContent=s.ip;document.getElementById('audio').textContent=s.audio;document.getElementById('audiopeak').textContent=s.audiopeak;document.getElementById('rxgainnow').textContent=s.rxgain;document.getElementById('adcclips').textContent=s.adcclips;document.getElementById('adcraw').textContent=s.adcmin+' / '+s.adcmax;document.getElementById('heap').textContent=s.heap;document.getElementById('topstate').textContent=(s.wifiok?'WIFI ':'')+(s.isok?'IS OK':'LOCAL');document.getElementById('topstate').className='pill '+(s.isok?'ok':'');document.getElementById('lastdec').textContent=s.lastdec==1?'A / MicroModem':(s.lastdec==2?'B-RAW':(s.lastdec==3?'B-EQ125':(s.lastdec==4?'B-EQ130':'NONE')));document.getElementById('deca').textContent=s.aok+' / '+s.abadu;document.getElementById('decb').textContent=s.bok+' / '+s.bbadu;document.getElementById('braw').textContent=s.brawok+' / '+s.brawbad;document.getElementById('bd75').textContent=s.bd75ok+' / '+s.bd75bad;document.getElementById('bd220').textContent=s.bd220ok+' / '+s.bd220bad;document.getElementById('afc').textContent=s.aflags+' / '+s.acand;document.getElementById('bfc').textContent=s.bflags+' / '+s.bcand;document.getElementById('tones').textContent=s.mark+' / '+s.space;document.getElementById('conf').textContent=s.conf+'%';document.getElementById('trans').textContent=s.trans;document.getElementById('dualdup').textContent=s.dualdup;let cs=s.capready?'READY':(s.capactive?'CAPTURING':(s.caparmed?'ARMED':'IDLE'));document.getElementById('capstat').textContent=cs;document.getElementById('capsamples').textContent=s.capsamples+' samples';document.getElementById('caplink').style.display=s.capready?'inline-block':'none';let os=document.getElementById('oledstate');if(os){os.textContent=s.oledok?'READY':'OFF/NO OLED';os.className=s.oledok?'ok':'bad';document.getElementById('oledaddr').textContent=s.oledaddr;document.getElementById('wxsrc').textContent=s.wxsrc;document.getElementById('wxage').textContent=s.wxage;}let mo=document.getElementById('modeov');if(mo){mo.textContent=s.mode;mo.className=(s.mode=='IGATE'?'ok':(s.mode=='DIGI'?'bad':''))}let go=document.getElementById('gpsov');if(go){go.textContent=s.gpsstate;go.className=s.gpsfix?'ok':'bad'}let tv=document.getElementById('trov');if(tv)tv.textContent=s.trrf+' / '+s.tris;let gs=document.getElementById('gpsstate');if(gs){gs.textContent=s.gpsstate;gs.className=s.gpsfix?'ok':'bad';document.getElementById('gpspins').textContent=s.gpspins;document.getElementById('gpssats').textContent=s.gpssats+' / '+s.gpshdop;document.getElementById('gpspos').textContent=s.gpsfix?(Number(s.gpslat).toFixed(6)+', '+Number(s.gpslon).toFixed(6)):'-';document.getElementById('gpsmove').textContent=s.gpsfix?(s.gpsspeed+' km/h / '+s.gpscourse+'°'):'-';document.getElementById('gpsalt').textContent=s.gpsfix?(s.gpsalt+' m'):'-';document.getElementById('gpsage').textContent=s.gpsfix?('fix age '+s.gpsage+' s'):'no fresh fix';document.getElementById('trlast').textContent=s.trreason;document.getElementById('trnext').textContent='next '+s.trnext+' s';document.getElementById('trcounts').textContent=s.trrf+' / '+s.tris+' / '+s.trdrop;document.getElementById('gpscounts').textContent=s.gpssent+' / '+s.gpsvalid+' / '+s.gpsinvalid;}}catch(e){document.getElementById('topstate').textContent='OFFLINE'}}"
          "async function logs(){try{document.getElementById('log').textContent=await (await fetch('/log.txt',{cache:'no-store'})).text()}catch(e){}}async function heard(){try{document.getElementById('heard').textContent=await (await fetch('/heard.txt',{cache:'no-store'})).text()}catch(e){}}"
          "async function cmd(u){try{let r=await fetch(u,{method:'POST'});toast(await r.text())}catch(e){toast('Command failed')}}function rebootNow(){if(confirm('Restart ESP32 sekarang?'))cmd('/reboot')}async function caparm(){try{let r=await fetch('/capturearm',{method:'POST'});toast(await r.text());stat()}catch(e){toast('Capture arm failed')}}async function diagreset(){try{let r=await fetch('/diagreset',{method:'POST'});toast(await r.text());stat()}catch(e){toast('Reset failed')}}"
          "try{let t=localStorage.getItem('nusaTab');if(t&&document.getElementById(t)){let b=document.querySelector('[data-tab=\"'+t+'\"]');tab(t,b)}}catch(e){}setInterval(stat,1500);setInterval(logs,2500);setInterval(heard,2500);stat();logs();heard();</script></body></html>");
@@ -2532,6 +2591,10 @@ static void handleStatus() {
   j += "\"wifiok\":" + String(w ? "true" : "false") + ",";
   j += "\"is\":\"" + String(i ? "CONNECTED" : "DISCONNECTED") + "\",";
   j += "\"isok\":" + String(i ? "true" : "false") + ",";
+  j += "\"automode\":" + String(cfg.autoModeSwitchEnabled ? "true" : "false") + ",";
+  j += "\"mode\":\"" + String(cfg.autoModeSwitchEnabled ? (effectiveIgateEnabled() ? "IGATE" : "DIGI") : "MANUAL") + "\",";
+  j += "\"igateeff\":" + String(effectiveIgateEnabled() ? "true" : "false") + ",";
+  j += "\"digieff\":" + String(effectiveDigiEnabled() ? "true" : "false") + ",";
   j += "\"busy\":" + String(AFSK_channelBusy() ? "true" : "false") + ",";
   j += "\"rx\":" + String(rfRxCount) + ",\"gated\":" + String(gatedCount) + ",\"digi\":" + String(digiTxCount) + ",";
   j += "\"is2rftx\":" + String(isToRfTxCount) + ",\"is2rfdrop\":" + String(isToRfDropCount) + ",";
@@ -2711,7 +2774,8 @@ void setup() {
   startWifi();
   setupWeb();
   lastBeaconMs = millis();
-  addLog("Station=" + stationCall() + "  iGate=" + String(cfg.igateEnabled ? "ON" : "OFF") + "  Digi=" + String(cfg.digiEnabled ? "ON" : "OFF"));
+  addLog("Station=" + stationCall() + "  Manual iGate=" + String(cfg.igateEnabled ? "ON" : "OFF") + "  Manual Digi=" + String(cfg.digiEnabled ? "ON" : "OFF"));
+  addLog("Auto Mode Switch=" + String(cfg.autoModeSwitchEnabled ? "ON" : "OFF") + " (APRS-IS online=>IGATE, offline=>DIGI)");
   addLog("Local IS>RF=" + String(cfg.isToRfEnabled ? "ON " : "OFF ") + cfg.localIsRfFilter + "  path=" + (cfg.isToRfPath.length() ? cfg.isToRfPath : String("DIRECT")));
   addLog("RF Remote=" + String(cfg.rfAdminEnabled ? "ON" : "OFF") + " Admin1=" + (cfg.rfAdmin1.length() ? cfg.rfAdmin1 : String("-")) + " Admin2=" + (cfg.rfAdmin2.length() ? cfg.rfAdmin2 : String("-")) + " Reply=" + (cfg.rfAdminReplyPath.length() ? cfg.rfAdminReplyPath : String("DIRECT")));
   addLog("Radio pins: RX=GPIO36 TX-DAC=GPIO26 PTT=GPIO" + String(cfg.pttPin));
@@ -2723,6 +2787,7 @@ void loop() {
   web.handleClient();
   serviceWifi();
   serviceAprsIs();
+  serviceAutoModeSwitch();
 
   // GPS UART is additive and bounded: at most 96 bytes are consumed per loop.
   gps.service(96);
@@ -2742,3 +2807,5 @@ void loop() {
   }
   delay(1);
 }
+
+[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]

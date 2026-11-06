@@ -17,6 +17,7 @@ REV1T keeps the proven REV1S RF receive/iGate/digipeater engine frozen and adds 
 - Bell 202 1200-baud AFSK RX/TX, AX.25/FCS.
 - Frozen REV1S receive engine: Decoder A (MicroModem lineage), B-RAW, B-EQ125 and B-EQ130.
 - RF → APRS-IS iGate and WIDE digipeater.
+- **Auto Mode Switch (default ON):** APRS-IS online → iGate ON/Digi OFF; Internet/APRS-IS unavailable → iGate OFF/Digi ON; automatically returns to iGate when the connection recovers.
 - Local APRS-IS → RF message gating (`i/30/0` default).
 - GPS tracker with NMEA RMC/GGA parsing for NEO-6M, NEO-M8N, NEO-M10N and compatible receivers.
 - Position modes: STATIC, GPS and AUTO (GPS with static fallback).
@@ -25,7 +26,7 @@ REV1T keeps the proven REV1S RF receive/iGate/digipeater engine frozen and adds 
 - Tracker RF path independent from normal beacon, IS→RF and RF Remote Admin reply paths.
 - Standard APRS uncompressed position with optional course/speed and altitude.
 - GPS state protection: NO GPS, GPS SEARCH, GPS FIX and GPS STALE; invalid/0,0 fallback is not transmitted.
-- RF Remote Admin adds `TRK`, `GPS`, `TMODE`, `TSEC`, `TPATH`, `TOUT` and `TBCN`.
+- RF Remote Admin adds `AMODE`, `TRK`, `GPS`, `TMODE`, `TSEC`, `TPATH`, `TOUT` and `TBCN`.
 - Web UI live GPS/tracker status and manual tracker beacon.
 - OLED GPS Tracker page.
 - Wi-Fi AP/STA configuration, live monitor, RF weather, last-heard RF/IS lists and RX WAV diagnostics.
@@ -116,10 +117,12 @@ REV1T compiles successfully with Arduino CLI 1.5.1 and **Arduino-ESP32 Core 3.3.
 
 Verified local build:
 
-- application flash: **1,139,979 bytes (86%)**
+- application flash: **1,145,655 bytes (87%)**
 - global RAM: **77,184 bytes (23%)**
 - free for local variables in the build report: **250,496 bytes**
 
 The AFSK/AX.25/CRC/FIFO/HDLC files in REV1T are byte-identical to REV1S. REV1T adds no new application FreeRTOS task, mutex or semaphore; the existing low-level AFSK implementation is retained unchanged.
 
 > RF Remote Admin uses exact callsign+SSID whitelisting, not cryptographic authentication. APRS source callsigns can be spoofed.
+
+[executed on device: stefendy (0b0a0c21-e827-4729-9ace-14c4d03fbbf8)]
