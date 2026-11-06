@@ -39,7 +39,7 @@ Final result:
 - `bootloader.bin`: `427f96e10c620c4f062dab15da54fc45494d897e8397ae6f3aecc98c42d7e379`
 - `partitions.bin`: `148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1`
 - `boot_app0.bin`: `f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0`
-- `firmware.bin`: `6317d90f2a1923cb117504ebefa3ad1984c176e112d3aaba7ea39879e063f930`
+- `firmware.bin`: `5fd37f0e515b19c0ae871dcea753852b86ca9596a599c4d4adb2be19895189ef`
 
 The GitHub Actions build may regenerate the application image from the same source; use the `SHA256SUMS.txt` beside the downloaded binaries as the authoritative checksum for that build.
 
